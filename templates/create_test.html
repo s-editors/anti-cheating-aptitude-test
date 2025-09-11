@@ -1,0 +1,360 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Test - Aptitude Test Platform{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom_forms.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/quiz_creator.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="gform-container">
+    <h2 class="gform-header"><i class="fas fa-plus-circle me-2"></i>Create New Test</h2>
+    
+    <div class="gform-body">
+        <form method="POST" action="{{ url_for('create_test') }}" id="createTestForm" enctype="multipart/form-data">
+            <div style="display: flex; gap: 24px; margin-bottom: 24px;">
+                <div style="flex: 2;">
+                    <label for="test_name" class="gform-label">Test Name</label>
+                    <input type="text" class="gform-control" id="test_name" name="test_name" required>
+                </div>
+                <div style="flex: 1;">
+                    <label for="duration" class="gform-label">Duration (minutes)</label>
+                    <input type="number" class="gform-control" id="duration" name="duration" min="5" max="180" value="30" required>
+                </div>
+            </div>
+            
+            <div style="margin: 32px 0 24px 0; border-top: 1px solid var(--border-color);"></div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h3 style="font-size: 18px; margin: 0; color: var(--primary-dark);"><i class="fas fa-question-circle me-2"></i>Questions</h3>
+                <button type="button" class="gform-btn gform-btn-primary" id="addQuestionBtn">
+                    <i class="fas fa-plus me-2"></i>Add Question
+                </button>
+            </div>
+            
+            <div id="questionsContainer">
+                <!-- Question template will be added here -->
+                <div class="question-card" data-question-id="1">
+                    <div class="question-header">
+                        <h4 class="question-title">Question 1</h4>
+                        <button type="button" class="gform-btn gform-btn-danger gform-btn-circle remove-question-btn">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                    <div>
+                        <div style="margin-bottom: 20px;">
+                            <label for="question_1" class="gform-label">Question Text</label>
+                            <textarea class="gform-control gform-textarea" id="question_1" name="question_1" rows="2" required></textarea>
+                        </div>
+                        
+                        <div class="option-container">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                                <div>
+                                    <label for="option_1_a" class="gform-label">Option A</label>
+                                    <input type="text" class="gform-control" id="option_1_a" name="option_1_a" required>
+                                </div>
+                                <div>
+                                    <label for="option_1_b" class="gform-label">Option B</label>
+                                    <input type="text" class="gform-control" id="option_1_b" name="option_1_b" required>
+                                </div>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                                <div>
+                                    <label for="option_1_c" class="gform-label">Option C</label>
+                                    <input type="text" class="gform-control" id="option_1_c" name="option_1_c" required>
+                                </div>
+                                <div>
+                                    <label for="option_1_d" class="gform-label">Option D</label>
+                                    <input type="text" class="gform-control" id="option_1_d" name="option_1_d" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="gform-label">Correct Answer</label>
+                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                                <div class="radio-option">
+                                    <input type="radio" name="correct_option_1" id="correct_1_a" value="A" required>
+                                    <label for="correct_1_a">Option A</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" name="correct_option_1" id="correct_1_b" value="B">
+                                    <label for="correct_1_b">Option B</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" name="correct_option_1" id="correct_1_c" value="C">
+                                    <label for="correct_1_c">Option C</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" name="correct_option_1" id="correct_1_d" value="D">
+                                    <label for="correct_1_d">Option D</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 20px;">
+                            <label for="question_image_1" class="gform-label">Question Image (Optional)</label>
+                            <div class="image-upload">
+                                <input type="file" id="question_image_1" name="question_image_1" accept="image/*" class="gform-control">
+                                <small class="form-text text-muted">Max 2MB. Allowed: JPG, PNG, GIF.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <input type="hidden" name="question_count" id="question_count" value="1">
+            
+            <div class="form-footer">
+                <div style="display: flex; gap: 12px;">
+                    <a href="{{ url_for('admin_dashboard') }}" class="gform-btn gform-btn-secondary">Cancel</a>
+                    <button type="submit" class="gform-btn gform-btn-primary" id="submitBtn">
+                        <i class="fas fa-save me-2"></i>Create Test
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const questionsContainer = document.getElementById('questionsContainer');
+        const addQuestionBtn = document.getElementById('addQuestionBtn');
+        const questionCountInput = document.getElementById('question_count');
+        const createTestForm = document.getElementById('createTestForm');
+        
+        let questionCount = 1;
+        
+        function isValidImageFile(file) {
+            const allowed = ['image/jpeg','image/png','image/gif'];
+            return file && allowed.includes(file.type) && file.size <= 2 * 1024 * 1024;
+        }
+        
+        // Add new question
+        addQuestionBtn.addEventListener('click', function() {
+            questionCount++;
+            const questionId = questionCount;
+            
+            const questionCard = document.createElement('div');
+            questionCard.className = 'question-card';
+            questionCard.dataset.questionId = questionId;
+            
+            questionCard.innerHTML = `
+                <div class="question-header">
+                    <h4 class="question-title">Question ${questionId}</h4>
+                    <button type="button" class="gform-btn gform-btn-danger gform-btn-circle remove-question-btn">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                <div>
+                    <div style="margin-bottom: 20px;">
+                        <label for="question_${questionId}" class="gform-label">Question Text</label>
+                        <textarea class="gform-control gform-textarea" id="question_${questionId}" name="question_${questionId}" rows="2" required></textarea>
+                    </div>
+                    
+                    <div class="option-container">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                            <div>
+                                <label for="option_${questionId}_a" class="gform-label">Option A</label>
+                                <input type="text" class="gform-control" id="option_${questionId}_a" name="option_${questionId}_a" required>
+                            </div>
+                            <div>
+                                <label for="option_${questionId}_b" class="gform-label">Option B</label>
+                                <input type="text" class="gform-control" id="option_${questionId}_b" name="option_${questionId}_b" required>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                            <div>
+                                <label for="option_${questionId}_c" class="gform-label">Option C</label>
+                                <input type="text" class="gform-control" id="option_${questionId}_c" name="option_${questionId}_c" required>
+                            </div>
+                            <div>
+                                <label for="option_${questionId}_d" class="gform-label">Option D</label>
+                                <input type="text" class="gform-control" id="option_${questionId}_d" name="option_${questionId}_d" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="gform-label">Correct Answer</label>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                            <div class="radio-option">
+                                <input type="radio" name="correct_option_${questionId}" id="correct_${questionId}_a" value="A" required>
+                                <label for="correct_${questionId}_a">Option A</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" name="correct_option_${questionId}" id="correct_${questionId}_b" value="B">
+                                <label for="correct_${questionId}_b">Option B</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" name="correct_option_${questionId}" id="correct_${questionId}_c" value="C">
+                                <label for="correct_${questionId}_c">Option C</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" name="correct_option_${questionId}" id="correct_${questionId}_d" value="D">
+                                <label for="correct_${questionId}_d">Option D</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <label for="question_image_${questionId}" class="gform-label">Question Image (Optional)</label>
+                        <div class="image-upload">
+                            <input type="file" id="question_image_${questionId}" name="question_image_${questionId}" accept="image/*" class="gform-control">
+                            <small class="form-text text-muted">Max 2MB. Allowed: JPG, PNG, GIF.</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            questionsContainer.appendChild(questionCard);
+            questionCountInput.value = questionCount;
+            
+            // Add event listener to the new remove button
+            const removeBtn = questionCard.querySelector('.remove-question-btn');
+            removeBtn.addEventListener('click', function() {
+                removeQuestion(questionCard);
+            });
+        });
+        
+        // Remove question
+        function removeQuestion(questionCard) {
+            if (document.querySelectorAll('.question-card').length > 1) {
+                questionCard.remove();
+                updateQuestionNumbers();
+            } else {
+                alert('You must have at least one question in the test.');
+            }
+        }
+        
+        // Update question numbers after removal
+        function updateQuestionNumbers() {
+            const questionCards = document.querySelectorAll('.question-card');
+            questionCount = questionCards.length;
+            questionCountInput.value = questionCount;
+            
+            questionCards.forEach((card, index) => {
+                const questionNumber = index + 1;
+                card.dataset.questionId = questionNumber;
+                card.querySelector('.question-title').textContent = `Question ${questionNumber}`;
+                
+                // Update all input names and IDs
+                updateInputAttributes(card, 'textarea', 'question_', questionNumber);
+                updateInputAttributes(card, 'input[type="text"][id^="option_"]', 'option_', questionNumber);
+                updateRadioAttributes(card, questionNumber);
+            });
+        }
+        
+        // Helper function to update input attributes
+        function updateInputAttributes(card, selector, prefix, questionNumber) {
+            const inputs = card.querySelectorAll(selector);
+            inputs.forEach(input => {
+                const oldId = input.id;
+                const suffix = oldId.includes('_a') ? '_a' : 
+                              oldId.includes('_b') ? '_b' : 
+                              oldId.includes('_c') ? '_c' : '_d';
+                
+                input.id = prefix + questionNumber + suffix;
+                input.name = prefix + questionNumber + suffix;
+                
+                // Update associated label
+                const label = card.querySelector(`label[for="${oldId}"]`);
+                if (label) {
+                    label.setAttribute('for', input.id);
+                }
+            });
+        }
+        
+        // Helper function to update radio button attributes
+        function updateRadioAttributes(card, questionNumber) {
+            const radios = card.querySelectorAll('input[type="radio"]');
+            radios.forEach(radio => {
+                const oldId = radio.id;
+                const suffix = oldId.includes('_a') ? '_a' : 
+                              oldId.includes('_b') ? '_b' : 
+                              oldId.includes('_c') ? '_c' : '_d';
+                
+                radio.name = `correct_option_${questionNumber}`;
+                radio.id = `correct_${questionNumber}${suffix}`;
+                
+                // Update associated label
+                const label = card.querySelector(`label[for="${oldId}"]`);
+                if (label) {
+                    label.setAttribute('for', radio.id);
+                }
+            });
+        }
+        
+        // Add event listeners to initial remove button
+        document.querySelectorAll('.remove-question-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const questionCard = this.closest('.question-card');
+                removeQuestion(questionCard);
+            });
+        });
+        
+        // Form validation
+        createTestForm.addEventListener('submit', function(e) {
+            const testName = document.getElementById('test_name').value.trim();
+            const duration = document.getElementById('duration').value;
+            
+            if (!testName) {
+                e.preventDefault();
+                alert('Please enter a test name.');
+                return;
+            }
+            
+            if (duration < 5 || duration > 180) {
+                e.preventDefault();
+                alert('Duration must be between 5 and 180 minutes.');
+                return;
+            }
+            
+            // Check if all questions have a selected correct answer
+            const questionCards = document.querySelectorAll('.question-card');
+            let allValid = true;
+            
+            questionCards.forEach(card => {
+                const questionId = card.dataset.questionId;
+                const questionText = card.querySelector(`#question_${questionId}`).value.trim();
+                const optionA = card.querySelector(`#option_${questionId}_a`).value.trim();
+                const optionB = card.querySelector(`#option_${questionId}_b`).value.trim();
+                const optionC = card.querySelector(`#option_${questionId}_c`).value.trim();
+                const optionD = card.querySelector(`#option_${questionId}_d`).value.trim();
+                const correctOption = card.querySelector(`input[name="correct_option_${questionId}"]:checked`);
+                
+                if (!questionText || !optionA || !optionB || !optionC || !optionD) {
+                    allValid = false;
+                    alert(`Please fill in all fields for Question ${questionId}.`);
+                    return;
+                }
+                
+                if (!correctOption) {
+                    allValid = false;
+                    alert(`Please select a correct answer for Question ${questionId}.`);
+                    return;
+                }
+                
+                const imageInput = card.querySelector(`#question_image_${questionId}`);
+                if (imageInput && imageInput.files && imageInput.files[0]) {
+                    if (!isValidImageFile(imageInput.files[0])) {
+                        allValid = false;
+                        alert(`Invalid image for Question ${questionId}. Max 2MB, JPG/PNG/GIF only.`);
+                        return;
+                    }
+                }
+            });
+            
+            if (!allValid) {
+                e.preventDefault();
+            }
+        });
+    });
+</script>
+{% endblock %}

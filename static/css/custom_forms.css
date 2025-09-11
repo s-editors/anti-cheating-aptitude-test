@@ -1,0 +1,242 @@
+/* Custom Forms CSS - Google Forms inspired design */
+
+:root {
+  --primary-color: #673ab7;
+  --primary-light: #9a67ea;
+  --primary-dark: #320b86;
+  --secondary-color: #ff5722;
+  --text-color: #202124;
+  --border-color: #dadce0;
+  --background-color: #f0ebf8;
+  --card-color: #ffffff;
+  --error-color: #d93025;
+  --success-color: #34a853;
+}
+
+/* General Form Styling */
+.gform-container {
+  max-width: 768px;
+  margin: 0 auto;
+  font-family: 'Roboto', 'Arial', sans-serif;
+  color: var(--text-color);
+}
+
+.gform-header {
+  background-color: var(--primary-color);
+  color: white;
+  border-radius: 8px 8px 0 0;
+  padding: 16px 24px;
+  margin-bottom: 0;
+}
+
+.gform-body {
+  background-color: var(--card-color);
+  border-radius: 0 0 8px 8px;
+  padding: 24px;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  margin-bottom: 24px;
+}
+
+/* Form Controls */
+.gform-control {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-bottom: 16px;
+  transition: border 0.2s ease;
+}
+
+.gform-control:focus {
+  outline: none;
+  border: 2px solid var(--primary-color);
+  padding: 11px 13px; /* Adjust padding to maintain size */
+}
+
+.gform-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.gform-textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+/* Question Card */
+.question-card {
+  background-color: var(--card-color);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  position: relative;
+}
+
+.question-card:hover {
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+}
+
+.question-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.question-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--primary-dark);
+  margin: 0;
+}
+
+/* Radio Options */
+.option-container {
+  margin-bottom: 16px;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  margin-right: 10px;
+  position: relative;
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"]:checked {
+  border-color: var(--primary-color);
+}
+
+.radio-option input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+}
+
+.radio-option label {
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* Buttons */
+.gform-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gform-btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.gform-btn-primary:hover {
+  background-color: var(--primary-dark);
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+}
+
+.gform-btn-secondary {
+  background-color: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.gform-btn-secondary:hover {
+  background-color: rgba(103, 58, 183, 0.04);
+}
+
+.gform-btn-danger {
+  background-color: white;
+  color: var(--error-color);
+  border: 1px solid var(--error-color);
+}
+
+.gform-btn-danger:hover {
+  background-color: rgba(217, 48, 37, 0.04);
+}
+
+.gform-btn i {
+  margin-right: 8px;
+}
+
+.gform-btn-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+
+.action-buttons-right {
+  display: flex;
+  gap: 12px;
+}
+
+/* Form Footer */
+.form-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .gform-container {
+    width: 100%;
+    padding: 0 16px;
+  }
+  
+  .option-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.question-card {
+  animation: fadeIn 0.3s ease-out;
+}
