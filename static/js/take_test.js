@@ -29,10 +29,10 @@ document.addEventListener('DOMContentLoaded', function () {
     })();
     
     // Get data from form attributes
-    const totalQuestions = parseInt(testForm.dataset.totalQuestions) || 0;
-    const testId = testForm.dataset.testId;
-    const duration = parseInt(testForm.dataset.duration) || 15; // 15 minutes default
-    const maxWarnings = parseInt(testForm.dataset.maxWarnings) || 3;
+    const totalQuestions = testForm ? (parseInt(testForm.dataset.totalQuestions) || 0) : 0;
+    const testId = testForm ? testForm.dataset.testId : null;
+    const duration = testForm ? (parseInt(testForm.dataset.duration) || 15) : 15; // 15 minutes default
+    const maxWarnings = testForm ? (parseInt(testForm.dataset.maxWarnings) || 3) : 3;
 
     console.log('Test initialization:', {
         totalQuestions: totalQuestions,
@@ -280,11 +280,24 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('Adding event listeners to next buttons');
         nextBtns.forEach(btn => {
             btn.addEventListener('click', function (e) {
-                console.log('Next button clicked, current question:', currentQuestion);
+                console.log('Next button clicked. Current:', currentQuestion, 'Total:', totalQuestions);
                 e.preventDefault();
+                
                 if (currentQuestion < totalQuestions) {
+                    const nextQ = currentQuestion + 1;
+                    const nextEl = document.getElementById(`question-${nextQ}`);
+                    
+                    if (!nextEl) {
+                        console.error(`Target question element #question-${nextQ} not found!`);
+                        alert('Error: Next question not found. Please verify your internet connection or refresh the page.');
+                        return;
+                    }
+
                     updateQuestionStatus(currentQuestion);
-                    showQuestion(currentQuestion + 1);
+                    showQuestion(nextQ);
+                } else {
+                    console.log('Already at last question');
+                    // Optional: Shake the button or show a tooltip?
                 }
             });
         });
