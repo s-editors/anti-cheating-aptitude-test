@@ -1,264 +1,193 @@
 {% extends 'base.html' %}
 
-{% block title %}Taking Test - Aptitude Test Platform{% endblock %}
+{% block title %}Taking Test - {{ test.name }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/test_interface.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/test_interface_modern.css') }}">
-<style>
-    /* Alignment improvements specific to take_test_new */
-    .test-container {
-        display: grid;
-        grid-template-columns: 1fr 320px;
-        gap: 24px;
-        align-items: start;
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-
-    .test-content {
-        width: 100%;
-    }
-
-    .test-sidebar {
-        position: sticky;
-        top: 80px;
-        height: fit-content;
-    }
-
-    .test-header h3 {
-        margin: 0;
-        line-height: 1.3;
-    }
-
-    .test-info {
-        margin-top: 6px;
-    }
-
-    .test-navigation {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        margin-top: 16px;
-    }
-
-    .submit-btn {
-        width: 100%;
-        margin-top: 16px;
-    }
-
-    .submit-warning {
-        margin-top: 8px;
-        text-align: center;
-    }
-
-    .question-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-    }
-
-    .question-image img {
-        max-height: 220px;
-        width: auto;
-        display: block;
-        margin-left: auto;
-    }
-
-    .answer-options {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px 16px;
-    }
-
-    .question-grid-section {
-        display: grid;
-        gap: 10px;
-    }
-
-    .question-grid {
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 8px;
-    }
-
-    .timer-display {
-        margin-bottom: 16px;
-    }
-
-    .legend-items {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px 12px;
-    }
-
-    @media (max-width: 992px) {
-        .test-container {
-            grid-template-columns: 1fr;
-        }
-        .test-sidebar {
-            position: static;
-        }
-        .answer-options {
-            grid-template-columns: 1fr;
-        }
-        .question-grid {
-            grid-template-columns: repeat(6, 1fr);
-        }
-    }
-
-    @media (max-width: 576px) {
-        .question-grid {
-            grid-template-columns: repeat(5, 1fr);
-        }
-    }
-</style>
 {% endblock %}
 
 {% block content %}
-<a href="#test-content" class="skip-link">Skip to test content</a>
+<div class="test-layout">
+    <!-- Main Question Area -->
+    <main class="test-main">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold mb-0 text-dark"><i class="fas fa-file-alt me-2 text-primary"></i>{{ test.name }}</h4>
+            <span class="badge bg-light text-dark border"><i class="fas fa-clock me-1"></i>Duration: {{ test.duration }} mins</span>
+        </div>
 
-<div class="container">
-    <div class="test-container" role="main" aria-label="Test Interface">
-        <div id="test-content" class="test-content" role="region" aria-label="Test Questions">
-            <div class="test-header">
-                <h3><i class="fas fa-edit me-2"></i>{{ test[1] }}</h3>
-                <div class="test-info">
-                    <span><i class="fas fa-list-ol me-1"></i>Total Questions: <strong>{{ questions|length }}</strong></span>
+        <div class="warning-container mb-3" id="warningContainer" style="display: none;">
+            <div class="alert alert-danger shadow-sm border-0 d-flex align-items-center">
+                <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                <div>
+                    <h5 class="alert-heading fw-bold mb-1">Warning!</h5>
+                    <p class="mb-0" id="warning-message">Please do not switch tabs or minimize the window.</p>
                 </div>
             </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('submit_test', test_id=test.id) }}" id="test-form" 
+              data-duration="{{ test.duration }}" 
+              data-total-questions="{{ questions|length }}" 
+              data-test-id="{{ test.id }}" 
+              data-max-warnings="{{ max_warnings }}">
             
-            <div class="warning-container" id="warningContainer" style="display: none;">
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i><strong>Warning!</strong> <span id="warning-message"></span>
-                </div>
-            </div>
-            
-            <form method="POST" action="{{ url_for('submit_test', test_id=test[0]) }}" id="test-form" 
-                  data-duration="{{ test[3] }}" data-total-questions="{{ questions|length }}" data-test-id="{{ test[0] }}">
-                <input type="hidden" name="start_time" id="start_time" value="{{ start_time }}">
-                <input type="hidden" name="warning_count" id="warning_count" value="0">
-                <input type="hidden" name="current_question" id="current_question" value="1">
-                
-                {% for question in questions %}
-                <div class="question-section" id="question-{{ loop.index }}" style="{% if loop.index > 1 %}display: none;{% endif %}" role="group" aria-labelledby="question-header-{{ loop.index }}">
-                    <div class="question-header" id="question-header-{{ loop.index }}">
-                        <div class="question-tag">Question {{ loop.index }} of {{ questions|length }}</div>
-                        {% if question[3] %}
-                        <div class="question-image">
-                            <img src="{{ url_for('static', filename='uploads/' + question[3]) }}" alt="Question Image" class="img-fluid">
+            <input type="hidden" name="start_time" id="start_time" value="{{ start_time }}">
+            <input type="hidden" name="warning_count" id="warning_count" value="0">
+            <input type="hidden" name="current_question" id="current_question" value="1">
+
+            {% for question in questions %}
+            <div class="question-section h-100" id="question-{{ loop.index }}" style="{% if loop.index > 1 %}display: none;{% endif %}" role="group">
+                <div class="question-card">
+                    <!-- Question Header -->
+                    <div class="question-header-panel">
+                        <span class="question-badge">Question {{ loop.index }} of {{ questions|length }}</span>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input bookmark-checkbox" type="checkbox" id="bookmark_{{ question.id }}">
+                            <label class="form-check-label small fw-bold text-muted" for="bookmark_{{ question.id }}">Bookmark</label>
+                        </div>
+                    </div>
+
+                    <!-- Question Content -->
+                    <div class="question-content overflow-auto custom-scrollbar">
+                        <div class="question-text">
+                            {{ question.question_text }}
+                        </div>
+
+                        {% if question.image_path %}
+                        <div class="question-image text-center">
+                            <img src="{{ url_for('static', filename='uploads/' + question.image_path) }}" alt="Question Reference" class="img-fluid">
                         </div>
                         {% endif %}
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="option-card">
+                                    <input type="radio" name="answer_{{ question.id }}" id="option_{{ question.id }}_a" value="A" class="option-input">
+                                    <label for="option_{{ question.id }}_a" class="option-label">
+                                        <span class="option-marker">A</span>
+                                        {{ question.option_a }}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="option-card">
+                                    <input type="radio" name="answer_{{ question.id }}" id="option_{{ question.id }}_b" value="B" class="option-input">
+                                    <label for="option_{{ question.id }}_b" class="option-label">
+                                        <span class="option-marker">B</span>
+                                        {{ question.option_b }}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="option-card">
+                                    <input type="radio" name="answer_{{ question.id }}" id="option_{{ question.id }}_c" value="C" class="option-input">
+                                    <label for="option_{{ question.id }}_c" class="option-label">
+                                        <span class="option-marker">C</span>
+                                        {{ question.option_c }}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="option-card">
+                                    <input type="radio" name="answer_{{ question.id }}" id="option_{{ question.id }}_d" value="D" class="option-input">
+                                    <label for="option_{{ question.id }}_d" class="option-label">
+                                        <span class="option-marker">D</span>
+                                        {{ question.option_d }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="question-text">{{ question[2] }}</div>
-                    
-                    <div class="answer-options">
-                        <div class="answer-option">
-                            <input type="radio" name="answer_{{ question[0] }}" id="option_{{ question[0] }}_a" value="A" required>
-                            <label for="option_{{ question[0] }}_a">A. {{ question[4] }}</label>
-                        </div>
-                        <div class="answer-option">
-                            <input type="radio" name="answer_{{ question[0] }}" id="option_{{ question[0] }}_b" value="B">
-                            <label for="option_{{ question[0] }}_b">B. {{ question[5] }}</label>
-                        </div>
-                        <div class="answer-option">
-                            <input type="radio" name="answer_{{ question[0] }}" id="option_{{ question[0] }}_c" value="C">
-                            <label for="option_{{ question[0] }}_c">C. {{ question[6] }}</label>
-                        </div>
-                        <div class="answer-option">
-                            <input type="radio" name="answer_{{ question[0] }}" id="option_{{ question[0] }}_d" value="D">
-                            <label for="option_{{ question[0] }}_d">D. {{ question[7] }}</label>
-                        </div>
+
+                    <!-- Navigation Footer -->
+                    <div class="controls-bar">
+                        <button type="button" class="btn btn-outline-secondary px-4 prev-btn" {% if questions|length == 1 %}disabled{% endif %}>
+                            <i class="fas fa-chevron-left me-2"></i>Previous
+                        </button>
+                        
+                        <button type="button" class="btn btn-primary px-4 next-btn" {% if questions|length == 1 %}disabled{% endif %}>
+                            Next<i class="fas fa-chevron-right ms-2"></i>
+                        </button>
                     </div>
-                    
-                    <div class="bookmark-container">
-                        <input type="checkbox" id="bookmark_{{ question[0] }}" class="bookmark-checkbox">
-                        <label for="bookmark_{{ question[0] }}">Bookmark this question</label>
-                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Submit Modal Trigger (Hidden but used by JS if needed, or we use the sidebar button) -->
+        </form>
+    </main>
+
+    <!-- Sidebar -->
+    <aside class="test-sidebar">
+        <!-- Timer -->
+        <div class="timer-card">
+            <h6 class="text-uppercase opacity-75 small mb-0">Time Remaining</h6>
+            <div class="timer-value" id="timer">
+                <span id="minutes">{{ "%02d"|format(test.duration|default(15)|int) }}</span>:<span id="seconds">00</span>
+            </div>
+            <div class="progress bg-white bg-opacity-25" style="height: 6px;">
+                <div class="progress-bar bg-info" id="timer-progress-bar" role="progressbar" style="width: 100%"></div>
+            </div>
+            <small class="d-block mt-2 opacity-75" id="timer-status">Good luck!</small>
+        </div>
+
+        <!-- Question Palette -->
+        <div class="navigation-card">
+            <h6 class="fw-bold mb-3">Question Palette</h6>
+            
+            <div class="question-grid">
+                {% for j in range(0, questions|length) %}
+                <div class="grid-item question-number {% if j == 0 %}active{% endif %}" 
+                     data-question="{{ j + 1 }}" 
+                     role="button" 
+                     tabindex="0">
+                    {{ j + 1 }}
                 </div>
                 {% endfor %}
-                
-                <div class="test-navigation">
-                    <button type="button" class="nav-btn btn-prev" id="prev-btn" {% if questions|length == 1 %}disabled{% endif %} aria-label="Previous question">
-                        <i class="fas fa-arrow-left me-2"></i>Previous
-                    </button>
-                    <button type="button" class="nav-btn btn-next" id="next-btn" {% if questions|length == 1 %}disabled{% endif %} aria-label="Next question">
-                        Next<i class="fas fa-arrow-right ms-2"></i>
-                    </button>
+            </div>
+
+            <div class="legend-container border-top pt-3 mt-3">
+                <div class="row g-2">
+                    <div class="col-6"><div class="legend-item"><span class="legend-dot bg-success"></span>Answered</div></div>
+                    <div class="col-6"><div class="legend-item"><span class="legend-dot bg-primary"></span>Current</div></div>
+                    <div class="col-6"><div class="legend-item"><span class="legend-dot bg-warning"></span>Visited</div></div>
+                    <div class="col-6"><div class="legend-item"><span class="legend-dot" style="background-color: var(--secondary);"></span>Bookmarked</div></div>
                 </div>
-                
-                <button type="submit" id="submit-btn" class="submit-btn">
-                    <i class="fas fa-paper-plane me-2"></i>Submit Test
-                </button>
-                <div class="submit-warning"><i class="fas fa-exclamation-circle me-1"></i>Warning: You cannot return to the test after submission.</div>
-            </form>
+            </div>
+
+            <button type="button" class="btn btn-dark w-100 mt-4 py-2 fw-bold" id="submit-btn-trigger" data-bs-toggle="modal" data-bs-target="#submitModal">
+                <i class="fas fa-paper-plane me-2"></i>Submit Test
+            </button>
         </div>
-        
-        <div class="test-sidebar" role="complementary" aria-label="Test Navigation and Timer">
-            <div class="timer-display" id="timer-display">
-                <h4>Time Remaining</h4>
-                <div class="timer-value" id="timer">
-                    <span id="minutes">{{ "%02d"|format(test[3]|default(15)|int) }}</span> min : <span id="seconds">00</span> sec
+    </aside>
+</div>
+
+<!-- Watermark -->
+<div class="watermark">
+    {{ session.username }} - {{ test.name }} - {{ now.strftime('%Y-%m-%d %H:%M') }}
+</div>
+
+
+<!-- Submit Confirmation Modal -->
+<div class="modal fade" id="submitModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-body text-center p-5">
+                <div class="mb-4">
+                    <i class="fas fa-check-circle text-success fa-4x"></i>
                 </div>
-                <div class="timer-progress">
-                    <div class="progress">
-                        <div class="progress-bar bg-success" id="timer-progress-bar" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                </div>
-                <div class="timer-status" id="timer-status">Plenty of time remaining</div>
-            </div>
-            
-            <div class="question-navigation">
-                <h4 class="section-title">Question Navigation</h4>
-                <div class="question-grid-section">
-                    {% set questions_per_row = 5 %}
-                    {% for i in range(0, questions|length, questions_per_row) %}
-                    <div class="question-grid">
-                        {% for j in range(i, i + questions_per_row) %}
-                        {% if j < questions|length %}
-                        <div class="question-number {% if j == 0 %}active{% else %}not-visited{% endif %}" data-question="{{ j + 1 }}" role="button" tabindex="0" aria-label="Go to question {{ j + 1 }}">
-                            {{ j + 1 }}
-                        </div>
-                        {% endif %}
-                        {% endfor %}
-                    </div>
-                    {% endfor %}
+                <h3 class="fw-bold mb-3">Ready to Submit?</h3>
+                <p class="text-muted mb-4">You have answered <span id="answered-count" class="fw-bold text-dark">0</span> out of <span class="fw-bold text-dark">{{ questions|length }}</span> questions.</p>
+                
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-primary btn-lg" onclick="document.getElementById('test-form').submit();">
+                        Yes, Submit Test
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        Review Answers
+                    </button>
                 </div>
             </div>
-            
-            <div class="legend">
-                <h5 class="legend-title">Legend</h5>
-                <div class="legend-items">
-                    <div class="legend-item">
-                        <div class="legend-color color-current"></div>
-                        <span>Current Question</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color color-answered"></div>
-                        <span>Answered (0)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color color-not-answered"></div>
-                        <span>Not Answered (0)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color color-not-visited"></div>
-                        <span>Not Visited ({{ questions|length - 1 }})</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color color-bookmarked"></div>
-                        <span>Bookmarked (0)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color color-bookmarked-answered"></div>
-                        <span>Bookmarked & Answered (0)</span>
-                    </div>
-                </div>
-            </div>
-            
         </div>
     </div>
 </div>
@@ -266,9 +195,22 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    // Simple test to verify JavaScript is working
-    console.log('Template scripts loaded');
-</script>
 <script src="{{ url_for('static', filename='js/take_test.js') }}"></script>
+<script>
+    // Additional UI logic for the new layout
+    document.addEventListener('DOMContentLoaded', function() {
+        // Connect the sidebar submit button to the real form submit (via modal now)
+        // The modal 'Yes' button triggers form submission
+        
+        // Update answered count in modal when opened
+        var submitModal = document.getElementById('submitModal');
+        if (submitModal) {
+            submitModal.addEventListener('show.bs.modal', function () {
+                var answered = document.querySelectorAll('.grid-item.answered').length;
+                document.getElementById('answered-count').textContent = answered;
+            });
+        }
+    });
+</script>
 {% endblock %}
+

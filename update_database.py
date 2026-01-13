@@ -39,6 +39,16 @@ def update_database_schema():
                 print("Column 'allow_review' already exists in tests table.")
             else:
                 raise
+
+        # Add per-test max_warnings column
+        try:
+            cursor.execute("ALTER TABLE tests ADD COLUMN max_warnings INT DEFAULT 3 AFTER created_at")
+            print("Added max_warnings column to tests table.")
+        except mysql.connector.Error as err:
+            if err.errno == 1060:  # Duplicate column error
+                print("Column 'max_warnings' already exists in tests table.")
+            else:
+                raise
         
         # Update questions table - add question_type and points fields
         try:
@@ -68,9 +78,43 @@ def update_database_schema():
                 print("Column 'points' already exists in questions table.")
             else:
                 raise
+
+        # Add image_path column for question images
+        try:
+            cursor.execute("ALTER TABLE questions ADD COLUMN image_path TEXT AFTER points")
+            print("Added image_path column to questions table.")
+        except mysql.connector.Error as err:
+            if err.errno == 1060:  # Duplicate column error
+                print("Column 'image_path' already exists in questions table.")
+            else:
+                raise
         
         conn.commit()
         print("Database schema updated successfully.")
+
+        # Create settings table if not exists and seed default max_warnings
+        try:
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS settings (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    `key` VARCHAR(100) NOT NULL UNIQUE,
+                    `value` VARCHAR(255) NOT NULL,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                )
+                """
+            )
+            print("Ensured settings table exists.")
+            cursor.execute(
+                """
+                INSERT INTO settings (`key`, `value`) VALUES ('max_warnings', '3')
+                ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)
+                """
+            )
+            conn.commit()
+            print("Seeded default 'max_warnings' setting.")
+        except mysql.connector.Error as err:
+            print(f"Error ensuring settings table or seeding value: {err}")
         
     except mysql.connector.Error as err:
         print(f"Error: {err}")

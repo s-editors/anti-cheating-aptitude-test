@@ -3,56 +3,71 @@
 {% block title %}Login - Aptitude Test Platform{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>Login</h4>
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo">
+                <i class="fas fa-graduation-cap"></i>
             </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('login') }}">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-user"></i></span>
-                            <input type="text" class="form-control" id="username" name="username" required>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                            <input type="password" class="form-control" id="password" name="password" required>
-                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Login as</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="user_type" id="userRadio" value="user" checked>
-                            <label class="form-check-label" for="userRadio">
-                                Test Taker
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="user_type" id="adminRadio" value="admin">
-                            <label class="form-check-label" for="adminRadio">
-                                Administrator
-                            </label>
-                        </div>
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Login</button>
-                    </div>
-                </form>
-            </div>
-            <div class="card-footer text-center">
-                <p class="mb-0">Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
-                <p class="mb-0 mt-2"><small>Demo User: username: demo_user, password: demo123</small></p>
-            </div>
+            <h2 class="h3 mb-2">Welcome Back</h2>
+            <p class="text-muted">Sign in to your account to continue</p>
         </div>
+        
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0">
+                        <i class="fas fa-user text-muted"></i>
+                    </span>
+                    <input type="text" class="form-control border-start-0 ps-0" id="username" name="username" required placeholder="Enter your username">
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label for="password" class="form-label">Password</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0">
+                        <i class="fas fa-lock text-muted"></i>
+                    </span>
+                    <input type="password" class="form-control border-start-0 ps-0" id="password" name="password" required placeholder="Enter your password">
+                    <button class="btn btn-outline-secondary border-start-0" type="button" id="togglePassword">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label d-block">Login as</label>
+                <div class="d-flex gap-3">
+                    <div class="form-check card-radio flex-grow-1">
+                        <input class="form-check-input" type="radio" name="user_type" id="userRadio" value="user" checked>
+                        <label class="form-check-label w-100 p-2 border rounded text-center" for="userRadio">
+                            <i class="fas fa-user d-block mb-1 fs-5"></i>
+                            User
+                        </label>
+                    </div>
+                    <div class="form-check card-radio flex-grow-1">
+                        <input class="form-check-input" type="radio" name="user_type" id="adminRadio" value="admin">
+                        <label class="form-check-label w-100 p-2 border rounded text-center" for="adminRadio">
+                            <i class="fas fa-user-shield d-block mb-1 fs-5"></i>
+                            Admin
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid mb-4">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    Login
+                </button>
+            </div>
+            
+            <div class="text-center">
+                <p class="mb-2 text-muted">Don't have an account?</p>
+                <a href="{{ url_for('register') }}" class="fw-bold text-decoration-none">Create an Account</a>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
@@ -63,12 +78,58 @@
         const togglePassword = document.getElementById('togglePassword');
         const password = document.getElementById('password');
         
-        togglePassword.addEventListener('click', function() {
-            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
-            password.setAttribute('type', type);
-            this.querySelector('i').classList.toggle('fa-eye');
-            this.querySelector('i').classList.toggle('fa-eye-slash');
+        if (togglePassword && password) {
+            togglePassword.addEventListener('click', function() {
+                const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+                password.setAttribute('type', type);
+                
+                const icon = this.querySelector('i');
+                if (type === 'password') {
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                } else {
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                }
+            });
+        }
+        
+        // Add active class to selected radio button parent
+        const radioInputs = document.querySelectorAll('input[name="user_type"]');
+        radioInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                document.querySelectorAll('.card-radio label').forEach(label => {
+                    label.classList.remove('border-primary', 'bg-light');
+                    label.classList.add('border');
+                });
+                
+                if (this.checked) {
+                    const label = this.nextElementSibling;
+                    label.classList.remove('border');
+                    label.classList.add('border-primary', 'bg-light');
+                }
+            });
+            
+            // Initialize state
+            if (input.checked) {
+                const label = input.nextElementSibling;
+                label.classList.remove('border');
+                label.classList.add('border-primary', 'bg-light');
+            }
         });
     });
 </script>
+<style>
+    /* Custom styles for radio cards */
+    .card-radio .form-check-input {
+        display: none;
+    }
+    .card-radio label {
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .card-radio label:hover {
+        border-color: var(--primary) !important;
+    }
+</style>
 {% endblock %}

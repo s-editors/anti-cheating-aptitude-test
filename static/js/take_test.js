@@ -8,9 +8,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize variables
     // ================================
     let warningCount = 0;
-    const maxWarnings = 3;
     const warningContainer = document.getElementById('warningContainer');
-    const warningCountInput = document.getElementById('warningCount');
+    const warningCountInput = document.getElementById('warning_count');
     const testForm = document.getElementById('test-form');
     const currentQuestionInput = document.getElementById('current_question');
     let currentQuestion = 1;
@@ -33,6 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const totalQuestions = parseInt(testForm.dataset.totalQuestions) || 0;
     const testId = testForm.dataset.testId;
     const duration = parseInt(testForm.dataset.duration) || 15; // 15 minutes default
+    const maxWarnings = parseInt(testForm.dataset.maxWarnings) || 3;
 
     console.log('Test initialization:', {
         totalQuestions: totalQuestions,
@@ -45,14 +45,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // ================================
     // Navigation buttons
     // ================================
-    const prevBtn = document.getElementById('prev-btn');
-    const nextBtn = document.getElementById('next-btn');
-    const submitBtn = document.getElementById('submit-btn');
+    const prevBtns = document.querySelectorAll('.prev-btn');
+    const nextBtns = document.querySelectorAll('.next-btn');
+    const submitBtn = document.getElementById('submit-btn-trigger'); // Updated ID
     const questionNumbers = document.querySelectorAll('.question-number');
 
     console.log('Navigation elements:', {
-        prevBtn: prevBtn,
-        nextBtn: nextBtn,
+        prevBtnsCount: prevBtns.length,
+        nextBtnsCount: nextBtns.length,
         submitBtn: submitBtn,
         questionNumbers: questionNumbers.length
     });
@@ -177,8 +177,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function updateNavigationButtons() {
-        if (prevBtn) prevBtn.disabled = currentQuestion === 1;
-        if (nextBtn) nextBtn.disabled = currentQuestion === totalQuestions;
+        prevBtns.forEach(btn => {
+            btn.disabled = currentQuestion === 1;
+        });
+        
+        nextBtns.forEach(btn => {
+            btn.disabled = currentQuestion === totalQuestions;
+        });
     }
 
     function updateQuestionNumbers() {
@@ -255,32 +260,36 @@ document.addEventListener('DOMContentLoaded', function () {
     // ================================
     // Event listeners
     // ================================
-    if (prevBtn) {
-        console.log('Adding event listener to prev button');
-        prevBtn.addEventListener('click', function (e) {
-            console.log('Prev button clicked, current question:', currentQuestion);
-            e.preventDefault();
-            if (currentQuestion > 1) {
-                updateQuestionStatus(currentQuestion);
-                showQuestion(currentQuestion - 1);
-            }
+    if (prevBtns.length > 0) {
+        console.log('Adding event listeners to prev buttons');
+        prevBtns.forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                console.log('Prev button clicked, current question:', currentQuestion);
+                e.preventDefault();
+                if (currentQuestion > 1) {
+                    updateQuestionStatus(currentQuestion);
+                    showQuestion(currentQuestion - 1);
+                }
+            });
         });
     } else {
-        console.error('Prev button not found!');
+        console.error('Prev buttons not found!');
     }
 
-    if (nextBtn) {
-        console.log('Adding event listener to next button');
-        nextBtn.addEventListener('click', function (e) {
-            console.log('Next button clicked, current question:', currentQuestion);
-            e.preventDefault();
-            if (currentQuestion < totalQuestions) {
-                updateQuestionStatus(currentQuestion);
-                showQuestion(currentQuestion + 1);
-            }
+    if (nextBtns.length > 0) {
+        console.log('Adding event listeners to next buttons');
+        nextBtns.forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                console.log('Next button clicked, current question:', currentQuestion);
+                e.preventDefault();
+                if (currentQuestion < totalQuestions) {
+                    updateQuestionStatus(currentQuestion);
+                    showQuestion(currentQuestion + 1);
+                }
+            });
         });
     } else {
-        console.error('Next button not found!');
+        console.error('Next buttons not found!');
     }
 
     questionNumbers.forEach(qNum => {
@@ -306,26 +315,16 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Submit button logic is handled by Bootstrap Modal in HTML
+    // We don't need a separate event listener here for the trigger button
+    /* 
     if (submitBtn) {
         console.log('Adding event listener to submit button');
         submitBtn.addEventListener('click', function (e) {
-            console.log('Submit button clicked');
-            e.preventDefault();
-            const answeredQuestions = document.querySelectorAll('.question-number.answered').length;
-            const unansweredQuestions = totalQuestions - answeredQuestions;
-
-            let confirmMessage = 'Are you sure you want to submit your test?';
-            if (unansweredQuestions > 0) {
-                confirmMessage = `WARNING: You have ${unansweredQuestions} unanswered question(s). Are you sure you want to submit your test?`;
-            }
-
-            if (confirm(confirmMessage + '\n\nThis action cannot be undone.')) {
-                submitTest();
-            }
+            // ... logic removed to avoid conflict with Bootstrap Modal ...
         });
-    } else {
-        console.error('Submit button not found!');
-    }
+    } 
+    */
 
     function submitTest() {
         console.log('Submitting test...');
@@ -377,21 +376,49 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // Detect focus loss (window blur) - captures Alt+Tab, Win+Shift+S (Snipping Tool), clicking outside
+    window.addEventListener('blur', function () {
+        recordWarning('Window focus lost. Please stay on the test screen.');
+    });
+
     document.addEventListener('keydown', function (e) {
-        if ((e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'x')) || (e.altKey && e.key === 'Tab')) {
+        // Prevent standard copy/paste/cut
+        if ((e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'x')) || 
+            (e.metaKey && (e.key === 'c' || e.key === 'v' || e.key === 'x'))) {
             e.preventDefault();
-            recordWarning('Keyboard shortcut detected: ' + (e.ctrlKey ? 'Ctrl+' : 'Alt+') + e.key);
+            recordWarning('Copy/Paste/Cut shortcuts are disabled');
+        }
+        
+        // Prevent Alt+Tab (though blur/visibilitychange usually catches this too)
+        if (e.altKey && e.key === 'Tab') {
+            e.preventDefault();
+            recordWarning('Alt+Tab is disabled');
         }
 
+        // Prevent PrintScreen (some browsers catch it on keydown)
         if (e.key === 'PrintScreen') {
             e.preventDefault();
-            recordWarning('Print Screen detected');
+            recordWarning('Screenshot attempt detected (PrintScreen)');
+        }
+
+        // Prevent Windows/Command key (often used for screenshots like Win+Shift+S)
+        if (e.key === 'Meta' || e.key === 'OS') {
+            e.preventDefault();
+            recordWarning('System key detected (Windows/Command key)');
+        }
+    });
+
+    // Backup for PrintScreen (some browsers only fire keyup for it)
+    document.addEventListener('keyup', function (e) {
+        if (e.key === 'PrintScreen') {
+            e.preventDefault();
+            recordWarning('Screenshot attempt detected (PrintScreen)');
         }
     });
 
     document.addEventListener('contextmenu', function (e) {
         e.preventDefault();
-        recordWarning('Right-click detected');
+        recordWarning('Right-click menu is disabled');
     });
 
     function recordWarning(message) {

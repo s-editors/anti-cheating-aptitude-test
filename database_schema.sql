@@ -18,6 +18,19 @@ CREATE TABLE IF NOT EXISTS admins (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create categories table
+CREATE TABLE IF NOT EXISTS categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE
+);
+
+-- Populate default categories
+INSERT IGNORE INTO categories (name) VALUES 
+('Quantitative'), 
+('Logical Reasoning'), 
+('Verbal Ability'), 
+('General Awareness/Technical/Computer Basics');
+
 -- Create tests table
 CREATE TABLE IF NOT EXISTS tests (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -27,13 +40,17 @@ CREATE TABLE IF NOT EXISTS tests (
     admin_id INT NOT NULL,
     allow_review BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    max_warnings INT DEFAULT 3,
+    shuffle_questions BOOLEAN DEFAULT FALSE,
+    max_attempts INT DEFAULT 1,
     FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
 );
 
 -- Create questions table
 CREATE TABLE IF NOT EXISTS questions (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    test_id INT NOT NULL,
+    test_id INT NULL,
+    category_id INT NULL,
     question_text TEXT NOT NULL,
     option_a TEXT,
     option_b TEXT,
@@ -42,7 +59,9 @@ CREATE TABLE IF NOT EXISTS questions (
     correct_option TEXT NOT NULL, -- 'A', 'B', 'C', 'D', or text answer for short answer questions
     question_type VARCHAR(20) DEFAULT 'multiple_choice', -- 'multiple_choice', 'true_false', 'short_answer'
     points INT DEFAULT 1,
-    FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE
+    image_path TEXT,
+    FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
 );
 
 -- Create results table
@@ -68,10 +87,22 @@ CREATE TABLE IF NOT EXISTS warnings (
     FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE
 );
 
--- Insert default admin user
-INSERT INTO admins (username, email, password) VALUES 
-('admin', 'admin@example.com', '$2b$12$1xxxxxxxxxxxxxxxxxxxxuZLbwlOLrNZkLOdKiXQQJAx1nwp2vXW'); -- Password: admin123
+-- Create settings table for global configuration
+CREATE TABLE IF NOT EXISTS settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    `key` VARCHAR(100) NOT NULL UNIQUE,
+    `value` VARCHAR(255) NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
 
--- Insert demo user
-INSERT INTO users (username, email, password) VALUES 
-('demo_user', 'demo@example.com', '$2b$12$1xxxxxxxxxxxxxxxxxxxxuZLbwlOLrNZkLOdKiXQQJAx1nwp2vXW'); -- Password: demo123
+-- Insert default warnings limit
+INSERT INTO settings (`key`, `value`) VALUES ('max_warnings', '3')
+ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
+
+-- Insert default admin user (password: admin123)
+INSERT IGNORE INTO admins (username, email, password) VALUES 
+('admin', 'admin@example.com', '$2b$12$1xxxxxxxxxxxxxxxxxxxxuZLbwlOLrNZkLOdKiXQQJAx1nwp2vXW');
+
+-- Insert demo user (password: demo123)
+INSERT IGNORE INTO users (username, email, password) VALUES 
+('demo_user', 'demo@example.com', '$2b$12$1xxxxxxxxxxxxxxxxxxxxuZLbwlOLrNZkLOdKiXQQJAx1nwp2vXW');

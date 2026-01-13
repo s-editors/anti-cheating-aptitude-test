@@ -89,15 +89,68 @@ A comprehensive web application for conducting online aptitude tests with robust
 7. **Access the application**
    - Open a web browser and navigate to `http://localhost:5000`
 
-## Default Credentials
+## Deployment
 
-### Admin
-- Username: admin
-- Password: admin123
+This application is ready for deployment on platforms like Heroku, Render, or Railway.
 
-### Demo User
-- Username: demo
-- Password: demo123
+### Deployment on Heroku
+
+1. **Install the Heroku CLI**: Download and install the [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli).
+
+2. **Login to Heroku**:
+   ```
+   heroku login
+   ```
+
+3. **Create a new Heroku app**:
+   ```
+   heroku create your-app-name
+   ```
+
+4. **Add ClearDB MySQL (or any other MySQL provider)**:
+   ```
+   heroku addons:create cleardb:ignite
+   ```
+
+5. **Retrieve Database URL**:
+   ```
+   heroku config:get CLEARDB_DATABASE_URL
+   ```
+   *Note the format: mysql://user:password@host/reconnect?reconnect=true*
+
+6. **Set Environment Variables**:
+   You need to set the environment variables in Heroku based on your database URL and other secrets.
+   ```
+   heroku config:set SECRET_KEY=your_generated_secret_key
+   heroku config:set MYSQL_HOST=your_db_host
+   heroku config:set MYSQL_USER=your_db_user
+   heroku config:set MYSQL_PASSWORD=your_db_password
+   heroku config:set MYSQL_DB=your_db_name
+   ```
+
+7. **Deploy the code**:
+   ```
+   git add .
+   git commit -m "Prepare for deployment"
+   git push heroku main
+   ```
+
+8. **Initialize Database**:
+   You may need to run the schema creation script manually or ensure `ensure_schema()` in `app.py` runs on startup (it is currently configured to run in `admin_dashboard` route, but you might want to run it explicitly or import the SQL file).
+   
+   To run SQL manually via Heroku CLI:
+   ```
+   heroku run bash
+   mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DB < database_schema.sql
+   ```
+
+### Other Platforms
+
+For other platforms (Render, Railway, DigitalOcean App Platform), ensure you:
+1. Use the `Procfile` (`web: gunicorn app:app`).
+2. Set the environment variables (`MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DB`, `SECRET_KEY`).
+3. Provision a MySQL database and connect it using the environment variables.
+
 
 ## Usage
 

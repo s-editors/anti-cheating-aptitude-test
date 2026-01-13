@@ -3,107 +3,92 @@
 {% block title %}Home - Aptitude Test Platform{% endblock %}
 
 {% block content %}
-<div class="jumbotron bg-light p-5 rounded">
-    <h1 class="display-4">Welcome to the Aptitude Test Platform</h1>
-    <p class="lead">A secure platform for conducting online aptitude tests with robust anti-cheating measures.</p>
-    <hr class="my-4">
-    <p>Choose your role below to get started:</p>
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Test Taker</h5>
-                </div>
-                <div class="card-body">
-                    <p>Take aptitude tests and view your results.</p>
-                    <div class="d-grid gap-2">
-                        {% if session.logged_in and session.user_type == 'user' %}
-                            <a href="{{ url_for('user_dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
-                        {% else %}
-                            <a href="{{ url_for('login') }}" class="btn btn-primary">Login as Test Taker</a>
-                            <a href="{{ url_for('register') }}" class="btn btn-outline-primary">Register as Test Taker</a>
-                        {% endif %}
-                    </div>
-                </div>
+<div class="container my-5">
+    <div class="row align-items-center mb-5">
+        <div class="col-lg-6">
+            <h1 class="display-4 fw-bold mb-3">Welcome to the Aptitude Test Platform</h1>
+            <p class="lead text-muted mb-4">A secure, professional platform for conducting online aptitude tests with robust integrity measures and comprehensive analytics.</p>
+            <div class="d-flex gap-3">
+                {% if session.logged_in %}
+                    <a href="{{ url_for('admin_dashboard' if session.user_type == 'admin' else 'user_dashboard') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-user-plus me-2"></i>Get Started
+                    </a>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>Login
+                    </a>
+                {% endif %}
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-user-shield me-2"></i>Administrator</h5>
+        <div class="col-lg-6 mt-4 mt-lg-0">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="card h-100 border-0 shadow-sm hover-shadow">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon bg-primary bg-opacity-10 text-primary mb-3 mx-auto rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                <i class="fas fa-user-graduate fa-2x"></i>
+                            </div>
+                            <h5 class="card-title">For Students</h5>
+                            <p class="card-text text-muted small">Take tests in a secure environment and track your progress with detailed analytics.</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <p>Create and manage tests, view results, and manage users.</p>
-                    <div class="d-grid gap-2">
-                        {% if session.logged_in and session.user_type == 'admin' %}
-                            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-success">Go to Admin Dashboard</a>
-                        {% else %}
-                            <a href="{{ url_for('login') }}" class="btn btn-success">Login as Administrator</a>
-                        {% endif %}
+                <div class="col-md-6">
+                    <div class="card h-100 border-0 shadow-sm hover-shadow">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon bg-success bg-opacity-10 text-success mb-3 mx-auto rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                <i class="fas fa-chalkboard-teacher fa-2x"></i>
+                            </div>
+                            <h5 class="card-title">For Admins</h5>
+                            <p class="card-text text-muted small">Create flexible tests, manage users, and view comprehensive results reports.</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="row mt-5">
-    <div class="col-12">
-        <h2 class="text-center mb-4">Key Features</h2>
-    </div>
-    <div class="col-md-4">
-        <div class="feature-box text-center p-4 h-100">
-            <div class="feature-icon mb-3">
-                <i class="fas fa-shield-alt fa-3x text-primary"></i>
-            </div>
-            <h4>Anti-Cheating Measures</h4>
-            <p>Our platform detects tab switching, application switching, and prohibited keyboard shortcuts to ensure test integrity.</p>
+    <div class="row g-4 py-5">
+        <div class="col-12 text-center mb-4">
+            <h2 class="fw-bold">Key Features</h2>
+            <p class="text-muted">Everything you need for successful assessments</p>
         </div>
-    </div>
-    <div class="col-md-4">
-        <div class="feature-box text-center p-4 h-100">
-            <div class="feature-icon mb-3">
-                <i class="fas fa-exclamation-triangle fa-3x text-warning"></i>
+        
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="d-inline-flex align-items-center justify-content-center p-3 bg-danger bg-opacity-10 text-danger rounded-3 mb-3">
+                        <i class="fas fa-shield-alt fa-2x"></i>
+                    </div>
+                    <h4>Anti-Cheating</h4>
+                    <p class="text-muted">Advanced proctoring detects tab switching, window resizing, and prohibited shortcuts to ensure test integrity.</p>
+                </div>
             </div>
-            <h4>Warning System</h4>
-            <p>Test takers receive warnings for suspicious activities. After three warnings, the test is automatically terminated.</p>
         </div>
-    </div>
-    <div class="col-md-4">
-        <div class="feature-box text-center p-4 h-100">
-            <div class="feature-icon mb-3">
-                <i class="fas fa-edit fa-3x text-success"></i>
+        
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="d-inline-flex align-items-center justify-content-center p-3 bg-warning bg-opacity-10 text-warning rounded-3 mb-3">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                    <h4>Real-time Tracking</h4>
+                    <p class="text-muted">Monitor test progress in real-time with automated warnings and submission management.</p>
+                </div>
             </div>
-            <h4>Easy Test Creation</h4>
-            <p>Administrators can create tests similar to Google Forms with multiple-choice questions and customizable settings.</p>
         </div>
-    </div>
-</div>
-
-<div class="row mt-5">
-    <div class="col-12">
-        <h2 class="text-center mb-4">How It Works</h2>
-    </div>
-    <div class="col-md-6 offset-md-3">
-        <div class="card">
-            <div class="card-body">
-                <div class="steps">
-                    <div class="step d-flex align-items-center mb-3">
-                        <div class="step-number bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">1</div>
-                        <div class="step-text">Register as a test taker or login as an administrator</div>
+        
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="d-inline-flex align-items-center justify-content-center p-3 bg-info bg-opacity-10 text-info rounded-3 mb-3">
+                        <i class="fas fa-chart-bar fa-2x"></i>
                     </div>
-                    <div class="step d-flex align-items-center mb-3">
-                        <div class="step-number bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">2</div>
-                        <div class="step-text">Administrators create tests with multiple-choice questions</div>
-                    </div>
-                    <div class="step d-flex align-items-center mb-3">
-                        <div class="step-number bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">3</div>
-                        <div class="step-text">Test takers take the tests in a secure environment</div>
-                    </div>
-                    <div class="step d-flex align-items-center">
-                        <div class="step-number bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">4</div>
-                        <div class="step-text">View results and performance analytics</div>
-                    </div>
+                    <h4>Detailed Analytics</h4>
+                    <p class="text-muted">Get instant results and detailed performance analysis for every test attempt.</p>
                 </div>
             </div>
         </div>

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Create Test - Aptitude Test Platform{% endblock %}
+{% block title %}Edit Test - Aptitude Test Platform{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -10,30 +10,30 @@
                 <div class="card-header bg-white py-3 border-0">
                     <div class="d-flex align-items-center">
                         <div class="feature-icon bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 48px; height: 48px;">
-                            <i class="fas fa-plus-circle fa-lg"></i>
+                            <i class="fas fa-edit fa-lg"></i>
                         </div>
                         <div>
-                            <h4 class="mb-0 fw-bold text-dark">Create New Test</h4>
-                            <p class="text-muted small mb-0">Design a new assessment for your students</p>
+                            <h4 class="mb-0 fw-bold text-dark">Edit Test: {{ test.name }}</h4>
+                            <p class="text-muted small mb-0">Modify test details and questions</p>
                         </div>
                     </div>
                 </div>
                 
                 <div class="card-body p-4">
-                    <form method="POST" action="{{ url_for('create_test') }}" id="createTestForm" enctype="multipart/form-data">
+                    <form method="POST" action="{{ url_for('edit_test', test_id=test.id) }}" id="editTestForm" enctype="multipart/form-data">
                         <!-- Test Details Section -->
                         <h5 class="fw-bold text-dark mb-3"><i class="fas fa-info-circle me-2 text-primary"></i>Test Details</h5>
                         <div class="row g-3 mb-4">
                             <div class="col-12">
                                 <label for="test_name" class="form-label fw-semibold">Test Name</label>
-                                <input type="text" class="form-control" id="test_name" name="test_name" required placeholder="Enter test title">
+                                <input type="text" class="form-control" id="test_name" name="test_name" value="{{ test.name }}" required placeholder="Enter test title">
                             </div>
                             
                             <div class="col-md-3">
                                 <label for="duration" class="form-label fw-semibold">Duration (minutes)</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-clock"></i></span>
-                                    <input type="number" class="form-control" id="duration" name="duration" min="5" max="180" value="30" required>
+                                    <input type="number" class="form-control" id="duration" name="duration" min="5" max="180" value="{{ test.duration }}" required>
                                 </div>
                             </div>
                             
@@ -41,7 +41,7 @@
                                 <label for="max_warnings" class="form-label fw-semibold">Warning Limit</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-exclamation-triangle"></i></span>
-                                    <input type="number" class="form-control" id="max_warnings" name="max_warnings" min="1" max="10" value="3" required>
+                                    <input type="number" class="form-control" id="max_warnings" name="max_warnings" min="1" max="10" value="{{ test.max_warnings }}" required>
                                 </div>
                                 <div class="form-text">Auto-submit after limit.</div>
                             </div>
@@ -50,7 +50,7 @@
                                 <label for="max_attempts" class="form-label fw-semibold">Max Attempts</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-redo"></i></span>
-                                    <input type="number" class="form-control" id="max_attempts" name="max_attempts" min="1" max="100" value="1" required>
+                                    <input type="number" class="form-control" id="max_attempts" name="max_attempts" min="1" max="100" value="{{ test.max_attempts|default(1) }}" required>
                                 </div>
                                 <div class="form-text">Allowed retakes.</div>
                             </div>
@@ -58,7 +58,7 @@
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold">Settings</label>
                                 <div class="form-check form-switch mt-2">
-                                    <input class="form-check-input" type="checkbox" id="shuffle_questions" name="shuffle_questions" value="1">
+                                    <input class="form-check-input" type="checkbox" id="shuffle_questions" name="shuffle_questions" value="1" {% if test.shuffle_questions %}checked{% endif %}>
                                     <label class="form-check-label" for="shuffle_questions">Randomize Questions</label>
                                 </div>
                             </div>
@@ -69,54 +69,60 @@
                         <!-- Questions Section -->
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h5 class="fw-bold text-dark mb-0"><i class="fas fa-question-circle me-2 text-primary"></i>Questions</h5>
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-outline-info btn-sm" id="showBankGenerateBtn">
-                                    <i class="fas fa-random me-2"></i>Generate from Bank
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" id="showExcelUploadBtn">
-                                    <i class="fas fa-file-excel me-2"></i>Import Excel
-                                </button>
-                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="addQuestionBtn">
+                                <i class="fas fa-plus me-2"></i>Add Question
+                            </button>
                         </div>
                         
                         <div id="questionsContainer">
-                            <!-- Question 1 (Default) -->
-                            <div class="card mb-4 border question-card shadow-sm" data-question-id="1">
+                            {% for question in questions %}
+                            <div class="card mb-4 border question-card shadow-sm" data-question-id="{{ loop.index }}">
+                                <input type="hidden" name="question_id_{{ loop.index }}" id="question_id_{{ loop.index }}" value="{{ question.id }}">
                                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0 fw-bold question-title">Question 1</h6>
+                                    <h6 class="mb-0 fw-bold question-title">Question {{ loop.index }}</h6>
                                     <button type="button" class="btn btn-danger btn-sm rounded-circle remove-question-btn" style="width: 32px; height: 32px; padding: 0;">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </div>
                                 <div class="card-body">
                                     <div class="mb-3">
-                                        <label for="question_1" class="form-label fw-semibold">Question Text</label>
-                                        <textarea class="form-control" id="question_1" name="question_1" rows="2" required placeholder="Enter your question here..."></textarea>
+                                        <label for="category_{{ loop.index }}" class="form-label fw-semibold">Category</label>
+                                        <select class="form-select" id="category_{{ loop.index }}" name="category_{{ loop.index }}" required>
+                                            <option value="" disabled {% if not question.category_id %}selected{% endif %}>Select a category</option>
+                                            {% for category in categories %}
+                                            <option value="{{ category.id }}" {% if question.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="question_{{ loop.index }}" class="form-label fw-semibold">Question Text</label>
+                                        <textarea class="form-control" id="question_{{ loop.index }}" name="question_{{ loop.index }}" rows="2" required>{{ question.question_text }}</textarea>
                                     </div>
                                     
                                     <div class="row g-3 mb-3">
                                         <div class="col-md-6">
                                             <div class="input-group">
                                                 <span class="input-group-text fw-bold">A</span>
-                                                <input type="text" class="form-control" id="option_1_a" name="option_1_a" required placeholder="Option A">
+                                                <input type="text" class="form-control" id="option_{{ loop.index }}_a" name="option_{{ loop.index }}_a" value="{{ question.option_a }}" required>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="input-group">
                                                 <span class="input-group-text fw-bold">B</span>
-                                                <input type="text" class="form-control" id="option_1_b" name="option_1_b" required placeholder="Option B">
+                                                <input type="text" class="form-control" id="option_{{ loop.index }}_b" name="option_{{ loop.index }}_b" value="{{ question.option_b }}" required>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="input-group">
                                                 <span class="input-group-text fw-bold">C</span>
-                                                <input type="text" class="form-control" id="option_1_c" name="option_1_c" required placeholder="Option C">
+                                                <input type="text" class="form-control" id="option_{{ loop.index }}_c" name="option_{{ loop.index }}_c" value="{{ question.option_c }}" required>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="input-group">
                                                 <span class="input-group-text fw-bold">D</span>
-                                                <input type="text" class="form-control" id="option_1_d" name="option_1_d" required placeholder="Option D">
+                                                <input type="text" class="form-control" id="option_{{ loop.index }}_d" name="option_{{ loop.index }}_d" value="{{ question.option_d }}" required>
                                             </div>
                                         </div>
                                     </div>
@@ -125,105 +131,50 @@
                                         <label class="form-label fw-semibold">Correct Answer</label>
                                         <div class="d-flex gap-4">
                                             <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="correct_option_1" id="correct_1_a" value="A" required>
-                                                <label class="form-check-label" for="correct_1_a">Option A</label>
+                                                <input class="form-check-input" type="radio" name="correct_option_{{ loop.index }}" id="correct_{{ loop.index }}_a" value="A" {% if question.correct_option == 'A' %}checked{% endif %} required>
+                                                <label class="form-check-label" for="correct_{{ loop.index }}_a">Option A</label>
                                             </div>
                                             <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="correct_option_1" id="correct_1_b" value="B">
-                                                <label class="form-check-label" for="correct_1_b">Option B</label>
+                                                <input class="form-check-input" type="radio" name="correct_option_{{ loop.index }}" id="correct_{{ loop.index }}_b" value="B" {% if question.correct_option == 'B' %}checked{% endif %}>
+                                                <label class="form-check-label" for="correct_{{ loop.index }}_b">Option B</label>
                                             </div>
                                             <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="correct_option_1" id="correct_1_c" value="C">
-                                                <label class="form-check-label" for="correct_1_c">Option C</label>
+                                                <input class="form-check-input" type="radio" name="correct_option_{{ loop.index }}" id="correct_{{ loop.index }}_c" value="C" {% if question.correct_option == 'C' %}checked{% endif %}>
+                                                <label class="form-check-label" for="correct_{{ loop.index }}_c">Option C</label>
                                             </div>
                                             <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="correct_option_1" id="correct_1_d" value="D">
-                                                <label class="form-check-label" for="correct_1_d">Option D</label>
+                                                <input class="form-check-input" type="radio" name="correct_option_{{ loop.index }}" id="correct_{{ loop.index }}_d" value="D" {% if question.correct_option == 'D' %}checked{% endif %}>
+                                                <label class="form-check-label" for="correct_{{ loop.index }}_d">Option D</label>
                                             </div>
                                         </div>
                                     </div>
                                     
                                     <div class="mt-3">
-                                        <label for="question_image_1" class="form-label fw-semibold">Question Image (Optional)</label>
-                                        <input type="file" id="question_image_1" name="question_image_1" accept="image/*" class="form-control">
-                                        <div class="form-text">Max 2MB. Allowed: JPG, PNG, GIF.</div>
+                                        <label for="question_image_{{ loop.index }}" class="form-label fw-semibold">Question Image (Optional)</label>
+                                        {% if question.image_path %}
+                                        <div class="mb-2 p-2 border rounded bg-light d-inline-block">
+                                            <img src="{{ url_for('static', filename='uploads/' + question.image_path) }}" alt="Current Image" style="max-height: 100px;">
+                                            <div class="small text-muted mt-1">Current image</div>
+                                        </div>
+                                        {% endif %}
+                                        <input type="file" id="question_image_{{ loop.index }}" name="question_image_{{ loop.index }}" accept="image/*" class="form-control">
+                                        <div class="form-text">Max 2MB. Allowed: JPG, PNG, GIF. Upload to replace.</div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Add Question Button -->
-                        <div class="text-center mb-5">
-                            <button type="button" class="btn btn-outline-primary btn-lg rounded-pill px-4" id="addQuestionBtn">
-                                <i class="fas fa-plus me-2"></i>Add Another Question
-                            </button>
+                            {% endfor %}
                         </div>
                         
-                        <input type="hidden" name="question_count" id="question_count" value="1">
+                        <input type="hidden" name="question_count" id="question_count" value="{{ questions|length }}">
                         
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end border-top pt-3">
                             <a href="{{ url_for('admin_dashboard') }}" class="btn btn-light me-md-2">Cancel</a>
                             <button type="submit" class="btn btn-primary px-4" id="submitBtn">
-                                <i class="fas fa-save me-2"></i>Create Test
+                                <i class="fas fa-save me-2"></i>Save Changes
                             </button>
                         </div>
                     </form>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Bank Generate Modal -->
-<div class="modal fade" id="bankGenerateModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title"><i class="fas fa-random me-2"></i>Generate from Bank</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <p class="text-muted mb-4">Select how many questions to randomly pick from each category.</p>
-                <div class="row g-3">
-                    {% for category in categories %}
-                    <div class="col-md-6">
-                        <label class="form-label small fw-bold">{{ category.name }}</label>
-                        <input type="number" class="form-control" name="category_count_{{ category.id }}" min="0" placeholder="Max: {{ category.count|default('?') }}" form="createTestForm">
-                    </div>
-                    {% endfor %}
-                </div>
-                <input type="hidden" name="generate_from_bank" id="generate_from_bank" value="0" form="createTestForm">
-            </div>
-            <div class="modal-footer bg-light border-0">
-                <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="generateBankBtn">Generate & Create</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Excel Import Modal -->
-<div class="modal fade" id="excelImportModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="fas fa-file-excel me-2"></i>Import from Excel</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <p class="text-muted mb-4">Select an Excel file (.xlsx, .xls) to import questions.</p>
-                <div class="mb-3">
-                    <label for="excel_file" class="form-label fw-semibold">Choose Excel File</label>
-                    <input type="file" class="form-control" id="excel_file" name="excel_file" accept=".xlsx, .xls" form="createTestForm">
-                    <div class="form-text mt-2">
-                        Format: Question Text | Option A | Option B | Option C | Option D | Correct Option (A/B/C/D) | Category<br>
-                        <a href="{{ url_for('static', filename='sample_template.xlsx') }}" download class="text-decoration-none"><i class="fas fa-download me-1"></i>Download Template</a>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer bg-light border-0">
-                <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="importExcelBtn">Import & Create</button>
             </div>
         </div>
     </div>
@@ -236,68 +187,16 @@
         const questionsContainer = document.getElementById('questionsContainer');
         const addQuestionBtn = document.getElementById('addQuestionBtn');
         const questionCountInput = document.getElementById('question_count');
-        const createTestForm = document.getElementById('createTestForm');
         
-        // Modal instances
-        const bankModal = new bootstrap.Modal(document.getElementById('bankGenerateModal'));
-        const excelModal = new bootstrap.Modal(document.getElementById('excelImportModal'));
+        let questionCount = {{ questions|length }};
         
-        // Button listeners for modals
-        document.getElementById('showBankGenerateBtn').addEventListener('click', () => bankModal.show());
-        document.getElementById('showExcelUploadBtn').addEventListener('click', () => excelModal.show());
-        
-        // Modal action buttons
-        document.getElementById('generateBankBtn').addEventListener('click', function() {
-            document.getElementById('generate_from_bank').value = "1";
-            createTestForm.submit();
-        });
-        
-        document.getElementById('importExcelBtn').addEventListener('click', function() {
-            if(document.getElementById('excel_file').files.length > 0) {
-                createTestForm.submit();
-            } else {
-                alert('Please select a file first.');
-            }
+        // Add event listeners to existing remove buttons
+        document.querySelectorAll('.remove-question-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                removeQuestion(this.closest('.question-card'));
+            });
         });
 
-        // Form validation before submit
-        createTestForm.addEventListener('submit', function(e) {
-            // Only validate if not generating from bank and not importing excel
-            // (Note: excel import triggers submit programmatically, which might bypass this listener depending on how it's called, 
-            // but here we are clicking the submit button for manual creation)
-            
-            const isBank = document.getElementById('generate_from_bank').value === "1";
-            const isExcel = document.getElementById('excel_file').value !== "";
-            
-            if (!isBank && !isExcel) {
-                const questionCards = document.querySelectorAll('.question-card');
-                let isValid = true;
-                
-                questionCards.forEach(card => {
-                    const questionId = card.dataset.questionId;
-                    const radios = card.querySelectorAll(`input[name="correct_option_${questionId}"]`);
-                    let optionSelected = false;
-                    
-                    radios.forEach(radio => {
-                        if (radio.checked) optionSelected = true;
-                    });
-                    
-                    if (!optionSelected) {
-                        isValid = false;
-                        // Highlight the card or scroll to it
-                        card.classList.add('border-danger');
-                        alert(`Please select a correct answer for Question ${questionId}`);
-                        e.preventDefault();
-                        return;
-                    } else {
-                        card.classList.remove('border-danger');
-                    }
-                });
-            }
-        });
-
-        let questionCount = 1;
-        
         // Add new question
         addQuestionBtn.addEventListener('click', function() {
             questionCount++;
@@ -307,6 +206,12 @@
             questionCard.className = 'card mb-4 border question-card shadow-sm';
             questionCard.dataset.questionId = questionId;
             
+            // Generate category options
+            let categoryOptions = '<option value="" disabled selected>Select a category</option>';
+            {% for category in categories %}
+            categoryOptions += '<option value="{{ category.id }}">{{ category.name }}</option>';
+            {% endfor %}
+            
             questionCard.innerHTML = `
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-bold question-title">Question ${questionId}</h6>
@@ -315,6 +220,13 @@
                     </button>
                 </div>
                 <div class="card-body">
+                    <div class="mb-3">
+                        <label for="category_${questionId}" class="form-label fw-semibold">Category</label>
+                        <select class="form-select" id="category_${questionId}" name="category_${questionId}" required>
+                            ${categoryOptions}
+                        </select>
+                    </div>
+
                     <div class="mb-3">
                         <label for="question_${questionId}" class="form-label fw-semibold">Question Text</label>
                         <textarea class="form-control" id="question_${questionId}" name="question_${questionId}" rows="2" required placeholder="Enter your question here..."></textarea>
@@ -409,9 +321,11 @@
                 card.querySelector('.question-title').textContent = `Question ${questionNumber}`;
                 
                 // Update all input names and IDs
+                updateInputAttributes(card, 'select[id^="category_"]', 'category_', questionNumber);
                 updateInputAttributes(card, 'textarea', 'question_', questionNumber);
                 updateInputAttributes(card, 'input[type="text"][id^="option_"]', 'option_', questionNumber);
                 updateInputAttributes(card, 'input[type="file"]', 'question_image_', questionNumber);
+                updateInputAttributes(card, 'input[type="hidden"][name^="question_id_"]', 'question_id_', questionNumber);
                 updateRadioAttributes(card, questionNumber);
             });
         }
