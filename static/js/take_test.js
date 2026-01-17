@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize variables
     // ================================
     let warningCount = 0;
+    let testFinished = false;
     const warningContainer = document.getElementById('warningContainer');
     const warningCountInput = document.getElementById('warning_count');
     const testForm = document.getElementById('test-form');
@@ -340,6 +341,10 @@ document.addEventListener('DOMContentLoaded', function () {
     */
 
     function submitTest() {
+        if (testFinished) {
+            return;
+        }
+        testFinished = true;
         console.log('Submitting test...');
         // Update final question status before submission
         updateQuestionStatus(currentQuestion);
@@ -347,6 +352,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // Update warning count
         if (warningCountInput) {
             warningCountInput.value = warningCount;
+        }
+        
+        if (timer) {
+            clearInterval(timer);
         }
         
         // Submit the form
@@ -435,6 +444,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function recordWarning(message) {
+        if (testFinished) {
+            return;
+        }
         warningCount++;
         if (warningCountInput) {
             warningCountInput.value = warningCount;
@@ -487,23 +499,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // ================================
-    // Page unload handling
-    // ================================
-    window.addEventListener('beforeunload', function (e) {
-        e.preventDefault();
-        e.returnValue = '';
-        return '';
-    });
+    window.manualSubmitTest = submitTest;
 
-    if (testForm) {
-        testForm.addEventListener('submit', function () {
-            window.removeEventListener('beforeunload', function (e) {
-                e.preventDefault();
-                e.returnValue = '';
-            });
-        });
-    }
+    // No page-unload handler: user can leave/close without browser warning dialog
 
     // ================================
     // Initialize on load

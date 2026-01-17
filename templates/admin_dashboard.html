@@ -300,7 +300,7 @@
                                 <button class="accordion-button collapsed bg-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUser{{ user_id }}" aria-expanded="false" aria-controls="collapseUser{{ user_id }}">
                                     <div class="d-flex align-items-center w-100 justify-content-between me-3">
                                         <div>
-                                            <span class="fw-bold text-dark">{% if student.full_name %}{{ student.full_name }} ({{ student.username }}){% else %}{{ student.username }}{% endif %}</span>
+                                            <span class="fw-bold text-dark">{{ student.full_name if student.full_name else student.username }}</span>
                                             <span class="text-muted small ms-2 d-none d-md-inline">{{ student.email }}</span>
                                         </div>
                                         <div class="d-flex align-items-center gap-2">
@@ -449,7 +449,7 @@
                         <tbody>
                             {% for result in results %}
                             <tr>
-                                <td class="ps-4 fw-medium">{% if result.full_name %}{{ result.full_name }} ({{ result.username }}){% else %}{{ result.username }}{% endif %}</td>
+                                <td class="ps-4 fw-medium">{{ result.full_name if result.full_name else result.username }}</td>
                                 <td>{{ result.test_name }}</td>
                                 <td class="text-muted">{{ result.formatted_date }}</td>
                                 <td><span class="fw-bold">{{ result.score }}</span> <span class="text-muted">({{ result.percentage }}%)</span></td>
@@ -497,7 +497,7 @@
                         <tbody>
                             {% for result in results if result.percentage >= 60 %}
                             <tr>
-                                <td class="ps-4 fw-medium">{% if result.full_name %}{{ result.full_name }} ({{ result.username }}){% else %}{{ result.username }}{% endif %}</td>
+                                <td class="ps-4 fw-medium">{{ result.full_name if result.full_name else result.username }}</td>
                                 <td>{{ result.test_name }}</td>
                                 <td class="text-muted">{{ result.formatted_date }}</td>
                                 <td class="text-end pe-4">
@@ -540,7 +540,7 @@
                         <tbody>
                             {% for warning in warnings %}
                             <tr>
-                                <td class="ps-4 fw-medium">{% if warning.full_name %}{{ warning.full_name }} ({{ warning.username }}){% else %}{{ warning.username }}{% endif %}</td>
+                                <td class="ps-4 fw-medium">{{ warning.full_name if warning.full_name else warning.username }}</td>
                                 <td>{{ warning.test_name }}</td>
                                 <td class="text-muted">{{ warning.formatted_timestamp }}</td>
                                 <td class="text-end pe-4 text-danger fw-medium">{{ warning.message }}</td>
@@ -805,10 +805,12 @@
         studentModal.addEventListener('show.bs.modal', function (event) {
             var button = event.relatedTarget;
             var username = button.getAttribute('data-username');
+            var fullname = button.getAttribute('data-fullname');
+            var displayName = fullname ? fullname : username;
             var stats = JSON.parse(button.getAttribute('data-stats'));
             
             var modalTitle = studentModal.querySelector('.modal-title');
-            modalTitle.textContent = 'Analytics: ' + username;
+            modalTitle.textContent = 'Analytics: ' + displayName;
             
             var labels = Object.keys(stats);
             var data = Object.values(stats);

@@ -113,7 +113,7 @@
             </div>
             {% endfor %}
 
-            <!-- Submit Modal Trigger (Hidden but used by JS if needed, or we use the sidebar button) -->
+            <button type="button" id="submit-btn" style="display:none;"></button>
         </form>
     </main>
 
@@ -180,7 +180,7 @@
                 <p class="text-muted mb-4">You have answered <span id="answered-count" class="fw-bold text-dark">0</span> out of <span class="fw-bold text-dark">{{ questions|length }}</span> questions.</p>
                 
                 <div class="d-grid gap-2">
-                    <button type="button" class="btn btn-primary btn-lg" onclick="document.getElementById('test-form').submit();">
+                    <button type="button" class="btn btn-primary btn-lg" onclick="window.manualSubmitTest && window.manualSubmitTest();">
                         Yes, Submit Test
                     </button>
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">

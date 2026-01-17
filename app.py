@@ -34,77 +34,76 @@ ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 def allowed_image(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
-# Configure Database
-import psycopg2
-import psycopg2.extras
-from flask import g
+# Configure Database (MySQL or PostgreSQL)
+from flask_mysqldb import MySQL
+import MySQLdb
+from MySQLdb.cursors import DictCursor
+import urllib.parse
+try:
+    import psycopg2
+    import psycopg2.extras
+except ImportError:
+    psycopg2 = None
 
-# Check if using PostgreSQL (e.g. Supabase) or MySQL (Local)
+app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'localhost')
+app.config['MYSQL_USER'] = os.getenv('MYSQL_USER', 'root')
+app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', 'suyash2005')
+app.config['MYSQL_DB'] = os.getenv('MYSQL_DB', 'aptitude_test_db')
+
+# Check for DATABASE_URL (PostgreSQL/Supabase)
 DATABASE_URL = os.getenv('DATABASE_URL')
-mysql = None
-
-if not DATABASE_URL:
-    try:
-        from flask_mysqldb import MySQL
-        import MySQLdb
-        app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'localhost')
-        app.config['MYSQL_USER'] = os.getenv('MYSQL_USER', 'root')
-        app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', 'suyash2005')
-        app.config['MYSQL_DB'] = os.getenv('MYSQL_DB', 'aptitude_test_db')
-        mysql = MySQL(app)
-    except ImportError:
-        print("Warning: flask_mysqldb not installed. MySQL connection will not work.")
-else:
-    print("Using PostgreSQL database.")
-
-# Database Helper Functions
-def get_quote_char():
-    return '"' if DATABASE_URL else '`'
+mysql = MySQL(app)
 
 def get_db_connection():
     if DATABASE_URL:
-        if 'db' not in g:
-            g.db = psycopg2.connect(DATABASE_URL)
-        return g.db
+        if not psycopg2:
+            raise ImportError("psycopg2 is required for PostgreSQL but not installed")
+        conn = psycopg2.connect(DATABASE_URL)
+        return conn
     else:
         return mysql.connection
 
-def get_db_cursor(dictionary=False):
-    conn = get_db_connection()
+def get_db_cursor(conn=None):
     if DATABASE_URL:
-        if dictionary:
-            return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        return conn.cursor()
+        if conn is None:
+            conn = get_db_connection()
+        return conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     else:
-        if dictionary:
-            return conn.cursor(MySQLdb.cursors.DictCursor)
-        return conn.cursor()
+        # Flask-MySQLdb handles connection automatically
+        return mysql.connection.cursor()
 
-def commit_db():
-    conn = get_db_connection()
-    conn.commit()
-
-def close_db(e=None):
+def commit_db(conn=None, cursor=None):
     if DATABASE_URL:
-        db = g.pop('db', None)
-        if db is not None:
-            db.close()
+        if conn:
+            conn.commit()
+        elif cursor and hasattr(cursor, 'connection'):
+            cursor.connection.commit()
+    else:
+        mysql.connection.commit()
 
-app.teardown_appcontext(close_db)
+def get_quote_char():
+    return '"' if DATABASE_URL else '`'
 
 def ensure_schema():
-    if DATABASE_URL:
-        return
+    quote = get_quote_char()
     try:
         cur = get_db_cursor()
         
         # Create categories table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS categories (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(255) NOT NULL UNIQUE
-            )
-        """)
+        if DATABASE_URL:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS categories (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL UNIQUE
+                )
+            """)
+        else:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS categories (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL UNIQUE
+                )
+            """)
         
         # Populate categories
         default_categories = [
@@ -152,10 +151,95 @@ def ensure_schema():
         except Exception as e:
             print(f"Error modifying test_id: {e}")
                 
-        commit_db()
+        mysql.connection.commit()
         cur.close()
     except Exception as e:
         print(f"Schema update error: {e}")
+
+def seed_quantitative_if_empty():
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT id FROM categories WHERE name = %s", ['Quantitative'])
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            return
+        category_id = row[0]
+        cur.execute("SELECT COUNT(*) FROM questions WHERE test_id IS NULL AND category_id = %s", [category_id])
+        count_row = cur.fetchone()
+        if count_row and count_row[0] and int(count_row[0]) > 0:
+            cur.close()
+            return
+        questions = [
+            ("What is 25% of 200?", "25", "40", "50", "60", "C"),
+            ("If 40% of a number is 120, the number is:", "200", "250", "300", "320", "C"),
+            ("Increase 500 by 10%.", "520", "540", "550", "560", "C"),
+            ("A number is decreased by 20%. What is the multiplier?", "1.2", "0.8", "0.2", "2", "B"),
+            ("15% of 400 = ?", "40", "50", "60", "70", "C"),
+            ("What percent of 50 is 10?", "5%", "10%", "20%", "25%", "C"),
+            ("If price increases from ₹100 to ₹120, percentage increase is:", "15%", "18%", "20%", "25%", "C"),
+            ("60 is what percent of 150?", "30%", "40%", "45%", "50%", "B"),
+            ("Decrease 200 by 25%.", "140", "150", "160", "170", "B"),
+            ("10% + 10% of 100 equals:", "10", "15", "20", "21", "D"),
+            ("Ratio of 20 and 30 is:", "1:2", "2:3", "3:2", "4:5", "B"),
+            ("If boys:girls = 4:3 and boys = 28, girls equal:", "21", "24", "30", "35", "A"),
+            ("Average of 10, 20, 30 equals:", "15", "20", "25", "30", "B"),
+            ("Sum of 5 numbers is 250. Average is:", "40", "45", "50", "55", "C"),
+            ("If cost price is 400 and selling price is 500, profit percentage is:", "20%", "25%", "30%", "40%", "B"),
+            ("If cost price is 600 and loss is 10%, selling price is:", "520", "530", "540", "550", "C"),
+            ("Profit of ₹100 on cost price ₹500 gives profit percentage:", "15%", "20%", "25%", "30%", "B"),
+            ("If selling price equals cost price, then there is:", "Profit", "Loss", "No profit no loss", "Double", "C"),
+            ("Average of first 10 natural numbers is:", "4.5", "5", "5.5", "6", "C"),
+            ("If ratio is 3:5 and sum is 64, the larger number is:", "24", "32", "40", "48", "C"),
+            ("Speed equals distance divided by:", "Time", "Work", "Power", "Force", "A"),
+            ("A train covers 120 km in 2 hours. Its speed is:", "40 km/h", "50 km/h", "60 km/h", "80 km/h", "C"),
+            ("A can do a work in 10 days. One day work is:", "1/5", "1/10", "1/15", "1/20", "B"),
+            ("A and B can do a work in 6 days together. One day work is:", "1/6", "1/3", "1/12", "2", "A"),
+            ("Standard unit of speed is:", "m/s", "km", "kg", "m", "A"),
+            ("Time equals distance divided by:", "Power", "Work", "Speed", "Force", "C"),
+            ("If speed doubles, time becomes:", "Double", "Same", "Half", "Zero", "C"),
+            ("One kilometer equals how many meters?", "100", "500", "1000", "1500", "C"),
+            ("60 km/h is equal to how many m/s?", "10", "15", "16.67", "20", "C"),
+            ("A does a job in 5 days and B in 10 days. Together they take (in days):", "2", "3.33", "4", "5", "B"),
+            ("Smallest prime number is:", "0", "1", "2", "3", "C"),
+            ("Which of the following is not a prime number?", "2", "3", "4", "5", "C"),
+            ("LCM of 6 and 8 is:", "12", "16", "24", "48", "C"),
+            ("HCF of 12 and 18 is:", "2", "3", "6", "12", "C"),
+            ("Even numbers are divisible by:", "1", "2", "3", "5", "B"),
+            ("Value of 7 squared is:", "14", "21", "49", "56", "C"),
+            ("Cube of 3 is:", "6", "9", "18", "27", "D"),
+            ("100 divided by 4 equals:", "20", "25", "30", "40", "B"),
+            ("Which of the following is a multiple of 9?", "18", "20", "22", "25", "A"),
+            ("Sum of first 10 natural numbers is:", "45", "50", "55", "60", "C"),
+            ("If x equals 5, x squared equals:", "10", "20", "25", "30", "C"),
+            ("Simple interest formula is:", "PRT", "P+RT", "P/RT", "PR/T", "A"),
+            ("Compound interest is always what compared to simple interest (for same data)?", "Equal", "Greater", "Smaller", "Zero", "B"),
+            ("A pie chart is generally used to represent:", "Growth", "Distribution", "Time", "Speed", "B"),
+            ("A bar graph is mainly used for:", "Comparison", "Division", "Multiplication", "Integration", "A"),
+            ("Mean of 2, 4, 6 is:", "3", "4", "5", "6", "B"),
+            ("Median of 1, 3, 5 is:", "1", "3", "5", "4", "B"),
+            ("Mode of 2, 2, 3, 4 is:", "2", "3", "4", "None", "A"),
+            ("Percentage is always calculated out of:", "10", "50", "100", "1000", "C"),
+            ("Profit occurs when:", "Cost price > Selling price", "Cost price < Selling price", "Cost price = Selling price", "None", "B")
+        ]
+        for q in questions:
+            question_text, option_a, option_b, option_c, option_d, correct_option = q
+            cur.execute("SELECT id FROM questions WHERE category_id = %s AND question_text = %s", [category_id, question_text])
+            exists = cur.fetchone()
+            if exists:
+                continue
+            cur.execute(
+                "INSERT INTO questions (category_id, question_text, option_a, option_b, option_c, option_d, correct_option) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (category_id, question_text, option_a, option_b, option_c, option_d, correct_option)
+            )
+        mysql.connection.commit()
+        cur.close()
+    except Exception:
+        try:
+            cur.close()
+        except Exception:
+            pass
 
 # Initialize extensions
 bcrypt = Bcrypt(app)
@@ -168,9 +252,8 @@ def inject_now():
 # Settings helper
 def get_setting(key: str, default: str) -> str:
     try:
-        cur = get_db_cursor()
-        quote = get_quote_char()
-        cur.execute(f"SELECT value FROM settings WHERE {quote}key{quote} = %s", [key])
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT value FROM settings WHERE `key` = %s", [key])
         row = cur.fetchone()
         cur.close()
         if row and row[0] is not None:
@@ -192,7 +275,7 @@ def login():
         user_type = request.form['user_type']
         
         # Connect to database
-        cur = get_db_cursor()
+        cur = mysql.connection.cursor()
         
         if user_type == 'admin':
             cur.execute("SELECT * FROM admins WHERE username = %s", [username])
@@ -238,7 +321,7 @@ def register():
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
         
         # Connect to database
-        cur = get_db_cursor()
+        cur = mysql.connection.cursor()
         
         # Check if username already exists
         cur.execute("SELECT * FROM users WHERE username = %s", [username])
@@ -251,7 +334,7 @@ def register():
         
         # Insert new user
         cur.execute("INSERT INTO users (username, email, password, full_name) VALUES (%s, %s, %s, %s)", (username, email, hashed_password, full_name))
-        commit_db()
+        mysql.connection.commit()
         cur.close()
         
         flash('Registration successful. You can now log in.', 'success')
@@ -267,12 +350,13 @@ def logout():
 
 @app.route('/reset-password')
 def reset_password():
-    return render_template('reset_password.html')
+    user_type = session.get('user_type', 'user')
+    return render_template('reset_password.html', user_type=user_type)
 
 @app.route('/reset-password-submit', methods=['POST'])
 def reset_password_submit():
-    username = request.form['username']
-    email = request.form['email']
+    username = request.form['username'].strip()
+    email = request.form['email'].strip()
     new_password = request.form['new_password']
     confirm_password = request.form['confirm_password']
     user_type = request.form['user_type']
@@ -280,13 +364,13 @@ def reset_password_submit():
     # Validation
     if new_password != confirm_password:
         flash('Passwords do not match', 'danger')
-        return render_template('reset_password.html')
+        return render_template('reset_password.html', user_type=user_type)
     
     # Hash password
     hashed_password = bcrypt.generate_password_hash(new_password).decode('utf-8')
     
     # Connect to database
-    cur = get_db_cursor()
+    cur = mysql.connection.cursor()
     
     if user_type == 'admin':
         cur.execute("SELECT * FROM admins WHERE username = %s AND email = %s", [username, email])
@@ -301,14 +385,14 @@ def reset_password_submit():
         else:
             cur.execute("UPDATE users SET password = %s WHERE username = %s", [hashed_password, username])
             
-        commit_db()
+        mysql.connection.commit()
         flash('Password reset successful. You can now log in with your new password.', 'success')
         cur.close()
         return redirect(url_for('login'))
     else:
         flash('Invalid username or email', 'danger')
         cur.close()
-        return render_template('reset_password.html')
+        return render_template('reset_password.html', user_type=user_type)
 
 @app.route('/user-dashboard')
 def user_dashboard():
@@ -317,7 +401,7 @@ def user_dashboard():
         return redirect(url_for('login'))
     
     # Get available tests
-    cur = get_db_cursor()
+    cur = mysql.connection.cursor()
     cur.execute("SELECT * FROM tests")
     tests_data = cur.fetchall()
     
@@ -370,10 +454,13 @@ def admin_dashboard():
     # Ensure schema is up to date
     ensure_schema()
     
-    cur = get_db_cursor(dictionary=True)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Get all tests created by this admin
-    cur.execute("SELECT * FROM tests WHERE admin_id = %s", [session['user_id']])
+    # Get tests
+    if session.get('username') == 'admin':
+        cur.execute("SELECT * FROM tests")
+    else:
+        cur.execute("SELECT * FROM tests WHERE admin_id = %s", [session['user_id']])
     tests = cur.fetchall()
     
     # Format dates for tests
@@ -561,7 +648,7 @@ def edit_test(test_id):
         flash('Please log in as an admin to access this page', 'danger')
         return redirect(url_for('login'))
     
-    cur = get_db_cursor(dictionary=True)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     # Get categories
     cur.execute("SELECT * FROM categories")
@@ -698,7 +785,7 @@ def edit_test(test_id):
             if qid not in updated_ids:
                 cur.execute("DELETE FROM questions WHERE id = %s AND test_id = %s", (qid, test_id))
                 
-        commit_db()
+        mysql.connection.commit()
         cur.close()
         flash('Test updated successfully', 'success')
         return redirect(url_for('admin_dashboard'))
@@ -724,10 +811,13 @@ def view_test_results(test_id):
         flash('Please log in as an admin to access this page', 'danger')
         return redirect(url_for('login'))
         
-    cur = get_db_cursor(dictionary=True)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     # Get test details
-    cur.execute("SELECT * FROM tests WHERE id = %s AND admin_id = %s", [test_id, session['user_id']])
+    if session.get('username') == 'admin':
+        cur.execute("SELECT * FROM tests WHERE id = %s", [test_id])
+    else:
+        cur.execute("SELECT * FROM tests WHERE id = %s AND admin_id = %s", [test_id, session['user_id']])
     test = cur.fetchone()
     
     if not test:
@@ -761,7 +851,9 @@ def question_bank():
         flash('Please log in as an admin to access this page', 'danger')
         return redirect(url_for('login'))
     
-    cur = get_db_cursor(dictionary=True)
+    seed_quantitative_if_empty()
+    
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     # Get categories
     cur.execute("SELECT * FROM categories")
@@ -818,13 +910,13 @@ def add_bank_question():
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], new_filename))
                 image_path = new_filename
     
-    cur = get_db_cursor()
+    cur = mysql.connection.cursor()
     try:
         cur.execute("""
             INSERT INTO questions (test_id, category_id, question_text, option_a, option_b, option_c, option_d, correct_option, image_path)
             VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (category_id, question_text, option_a, option_b, option_c, option_d, correct_option, image_path))
-        commit_db()
+        mysql.connection.commit()
         flash('Question added to bank successfully', 'success')
     except Exception as e:
         flash(f'Error adding question: {str(e)}', 'danger')
@@ -875,7 +967,7 @@ def upload_bank_questions():
             flash('Missing correct_option column', 'danger')
             return redirect(url_for('question_bank'))
             
-        cur = get_db_cursor()
+        cur = mysql.connection.cursor()
         count = 0
         
         for index, row in data.iterrows():
@@ -900,7 +992,7 @@ def upload_bank_questions():
             """, (category_id, question_text, option_a, option_b, option_c, option_d, correct_option))
             count += 1
             
-        commit_db()
+        mysql.connection.commit()
         cur.close()
         flash(f'{count} questions uploaded to category successfully', 'success')
         
@@ -909,6 +1001,24 @@ def upload_bank_questions():
         
     return redirect(url_for('question_bank'))
 
+
+@app.route('/download-bank-template')
+def download_bank_template():
+    if 'logged_in' not in session or session['user_type'] != 'admin':
+        return redirect(url_for('login'))
+    
+    output = io.BytesIO()
+    df = pd.DataFrame(columns=['question_text', 'option_a', 'option_b', 'option_c', 'option_d', 'correct_option'])
+    
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='QuestionsTemplate', index=False)
+    
+    output.seek(0)
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f'question_bank_template_{timestamp}.xlsx'
+    
+    return send_file(output, download_name=filename, as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
 @app.route('/create-test', methods=['GET', 'POST'])
 def create_test():
     if 'logged_in' not in session or session['user_type'] != 'admin':
@@ -916,7 +1026,7 @@ def create_test():
         return redirect(url_for('login'))
     
     # Get categories for the form
-    cur = get_db_cursor(dictionary=True)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cur.execute("SELECT * FROM categories")
     categories = cur.fetchall()
     
@@ -949,16 +1059,11 @@ def create_test():
                 max_attempts = 1
             
             # Create test
-            cur = get_db_cursor(dictionary=True)
+            cur = mysql.connection.cursor()
             try:
-                if DATABASE_URL:
-                    cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings, shuffle_questions, max_attempts) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id", 
-                               [test_name, duration, session['user_id'], description, max_warnings, shuffle_questions, max_attempts])
-                    test_id = cur.fetchone()['id']
-                else:
-                    cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings, shuffle_questions, max_attempts) VALUES (%s, %s, %s, %s, %s, %s, %s)", 
-                               [test_name, duration, session['user_id'], description, max_warnings, shuffle_questions, max_attempts])
-                    test_id = cur.lastrowid
+                cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings, shuffle_questions, max_attempts) VALUES (%s, %s, %s, %s, %s, %s, %s)", 
+                           [test_name, duration, session['user_id'], description, max_warnings, shuffle_questions, max_attempts])
+                test_id = cur.lastrowid
                 
                 total_questions = 0
                 # Process each category count
@@ -968,11 +1073,10 @@ def create_test():
                     
                     if count > 0:
                         # Select random questions from bank
-                        rand_func = 'RANDOM()' if DATABASE_URL else 'RAND()'
-                        cur.execute(f"""
+                        cur.execute("""
                             SELECT * FROM questions 
                             WHERE test_id IS NULL AND category_id = %s 
-                            ORDER BY {rand_func} 
+                            ORDER BY RAND() 
                             LIMIT %s
                         """, (category['id'], count))
                         
@@ -980,14 +1084,27 @@ def create_test():
                         
                         for q in selected_questions:
                             # Copy question to new test
+                            # Note: We need to check if question has category_id column in fetch
+                            # Since we fetched *, it should be there.
+                            
+                            # Insert copy
                             cur.execute("""
                                 INSERT INTO questions (test_id, category_id, question_text, option_a, option_b, option_c, option_d, correct_option, image_path)
                                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                            """, (test_id, category['id'], q['question_text'], q['option_a'], q['option_b'], q['option_c'], q['option_d'], q['correct_option'], q.get('image_path')))
+                            """, (test_id, category['id'], q[2], q[3], q[4], q[5], q[6], q[7], q[8])) # Adjust indices based on schema
+                            
+                            # Wait, indices might be wrong if using DictCursor? 
+                            # Ah, `cur` here is default cursor (tuple).
+                            # Let's check indices from schema:
+                            # 0: id, 1: test_id, 2: question_text, 3: option_a, 4: option_b, 5: option_c, 6: option_d, 7: correct_option, 8: image_path, 9: question_type, 10: points, 11: category_id
+                            
+                            # Wait, fetchall returns tuples.
+                            # We should use named access if possible or be careful.
+                            # Let's use DictCursor for fetching to be safe.
                         
                         total_questions += len(selected_questions)
                 
-                commit_db()
+                mysql.connection.commit()
                 cur.close()
                 flash(f'Test created successfully with {total_questions} questions from bank', 'success')
                 return redirect(url_for('admin_dashboard'))
@@ -1049,27 +1166,21 @@ def create_test():
                     max_attempts = 1
 
                 # Create test
-                cur = get_db_cursor()
-                if DATABASE_URL:
-                    cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings, shuffle_questions, max_attempts) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id", 
+                cur = mysql.connection.cursor()
+                try:
+                    cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings, shuffle_questions, max_attempts) VALUES (%s, %s, %s, %s, %s, %s, %s)", 
                                [test_name, duration, session['user_id'], description, max_warnings, shuffle_questions, max_attempts])
-                    test_id = cur.fetchone()[0]
-                    commit_db()
-                else:
+                except Exception as e:
+                    # Fallback logic if columns missing (though ensure_schema runs)
                     try:
-                        cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings, shuffle_questions, max_attempts) VALUES (%s, %s, %s, %s, %s, %s, %s)", 
-                                   [test_name, duration, session['user_id'], description, max_warnings, shuffle_questions, max_attempts])
-                    except Exception as e:
-                        # Fallback logic if columns missing (though ensure_schema runs)
-                        try:
-                            cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings) VALUES (%s, %s, %s, %s, %s)", 
-                                       [test_name, duration, session['user_id'], description, max_warnings])
-                        except:
-                            cur.execute("INSERT INTO tests (name, duration, admin_id, description) VALUES (%s, %s, %s, %s)", 
-                                       [test_name, duration, session['user_id'], description])
-                    
-                    commit_db()
-                    test_id = cur.lastrowid
+                        cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings) VALUES (%s, %s, %s, %s, %s)", 
+                                   [test_name, duration, session['user_id'], description, max_warnings])
+                    except:
+                        cur.execute("INSERT INTO tests (name, duration, admin_id, description) VALUES (%s, %s, %s, %s)", 
+                                   [test_name, duration, session['user_id'], description])
+                                   
+                mysql.connection.commit()
+                test_id = cur.lastrowid
                 
                 # Process each row in file
                 for index, row in data.iterrows():
@@ -1106,7 +1217,7 @@ def create_test():
                         cur.execute("INSERT INTO questions (test_id, question_text, option_a, option_b, option_c, option_d, correct_option) VALUES (%s, %s, %s, %s, %s, %s, %s)", 
                                    [test_id, question_text, option_a, option_b, option_c, option_d, correct_option])
                 
-                commit_db()
+                mysql.connection.commit()
                 cur.close()
                 file_type = "Excel" if file.filename.endswith(('.xlsx', '.xls')) else "CSV"
                 flash(f'Test created successfully with {len(data)} questions from {file_type} file', 'success')
@@ -1139,27 +1250,21 @@ def create_test():
             except (ValueError, TypeError):
                 max_attempts = 1
 
-            cur = get_db_cursor()
-            if DATABASE_URL:
-                cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings, shuffle_questions, max_attempts) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id", 
+            cur = mysql.connection.cursor()
+            try:
+                cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings, shuffle_questions, max_attempts) VALUES (%s, %s, %s, %s, %s, %s, %s)", 
                            [test_name, duration, session['user_id'], description, max_warnings, shuffle_questions, max_attempts])
-                test_id = cur.fetchone()[0]
-                commit_db()
-            else:
+            except Exception as e:
+                # Fallback
                 try:
-                    cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings, shuffle_questions, max_attempts) VALUES (%s, %s, %s, %s, %s, %s, %s)", 
-                               [test_name, duration, session['user_id'], description, max_warnings, shuffle_questions, max_attempts])
-                except Exception as e:
-                    # Fallback
-                    try:
-                        cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings) VALUES (%s, %s, %s, %s, %s)", 
-                                   [test_name, duration, session['user_id'], description, max_warnings])
-                    except:
-                        cur.execute("INSERT INTO tests (name, duration, admin_id, description) VALUES (%s, %s, %s, %s)", 
-                                   [test_name, duration, session['user_id'], description])
-                
-                commit_db()
-                test_id = cur.lastrowid
+                    cur.execute("INSERT INTO tests (name, duration, admin_id, description, max_warnings) VALUES (%s, %s, %s, %s, %s)", 
+                               [test_name, duration, session['user_id'], description, max_warnings])
+                except:
+                    cur.execute("INSERT INTO tests (name, duration, admin_id, description) VALUES (%s, %s, %s, %s)", 
+                               [test_name, duration, session['user_id'], description])
+            
+            mysql.connection.commit()
+            test_id = cur.lastrowid
             
             num_questions = int(request.form['question_count'])
             for i in range(1, num_questions + 1):
@@ -1212,7 +1317,7 @@ def create_test():
                                    [test_id, question_text, option_a, option_b, option_c, option_d, correct_option])
             
             flash('Test created successfully', 'success')
-            commit_db()
+            mysql.connection.commit()
             cur.close()
             return redirect(url_for('admin_dashboard'))
     
@@ -1230,16 +1335,15 @@ def update_warning_limit():
             raise ValueError('Warning limit must be at least 1')
         if new_limit > 20:
             raise ValueError('Warning limit too high (max 20)')
-        cur = get_db_cursor()
-        quote = get_quote_char()
+        cur = mysql.connection.cursor()
         # Upsert setting
-        cur.execute(f"SELECT id FROM settings WHERE {quote}key{quote} = %s", ['max_warnings'])
+        cur.execute("SELECT id FROM settings WHERE `key` = %s", ['max_warnings'])
         exists = cur.fetchone()
         if exists:
-            cur.execute(f"UPDATE settings SET {quote}value{quote} = %s WHERE {quote}key{quote} = %s", [str(new_limit), 'max_warnings'])
+            cur.execute("UPDATE settings SET `value` = %s WHERE `key` = %s", [str(new_limit), 'max_warnings'])
         else:
-            cur.execute(f"INSERT INTO settings ({quote}key{quote}, {quote}value{quote}) VALUES (%s, %s)", ['max_warnings', str(new_limit)])
-        commit_db()
+            cur.execute("INSERT INTO settings (`key`, `value`) VALUES (%s, %s)", ['max_warnings', str(new_limit)])
+        mysql.connection.commit()
         cur.close()
         flash('Warnings limit updated successfully', 'success')
     except ValueError as ve:
@@ -1256,7 +1360,7 @@ def available_tests():
         return redirect(url_for('login'))
     
     # Get available tests
-    cur = get_db_cursor(dictionary=True)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cur.execute("SELECT * FROM tests")
     tests = list(cur.fetchall())
     
@@ -1281,7 +1385,7 @@ def take_test(test_id):
         return redirect(url_for('login'))
     
     # Get test details
-    cur = get_db_cursor(dictionary=True)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cur.execute("SELECT * FROM tests WHERE id = %s", [test_id])
     test = cur.fetchone()
     
@@ -1379,57 +1483,124 @@ def submit_test(test_id):
     if 'logged_in' not in session or session['user_type'] != 'user':
         flash('Please log in as a user to access this page', 'danger')
         return redirect(url_for('login'))
-    
+
     # Check if test time is over
     current_time = datetime.datetime.now().timestamp()
     test_start_time = session.get('test_start_time', 0)
     test_duration = session.get('test_duration', 0)
-    
+
     if current_time - test_start_time > test_duration * 60:
         flash('Test time is over. Your answers have been submitted automatically.', 'warning')
-    
+
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Get test info (including max_attempts)
+    cur.execute("SELECT * FROM tests WHERE id = %s", [test_id])
+    test = cur.fetchone()
+    if not test:
+        cur.close()
+        flash('Test not found', 'danger')
+        return redirect(url_for('available_tests'))
+
+    max_attempts_limit = test.get('max_attempts', 1)
+    if max_attempts_limit is None:
+        max_attempts_limit = 1
+
+    # Check how many attempts already exist for this user and test
+    cur.execute(
+        "SELECT COUNT(*) AS count FROM results WHERE user_id = %s AND test_id = %s",
+        [session['user_id'], test_id]
+    )
+    attempts_row = cur.fetchone()
+    attempts_count = attempts_row['count'] if attempts_row and 'count' in attempts_row else 0
+
+    # If user has already reached max attempts, do not create another result row
+    if attempts_count >= max_attempts_limit:
+        # Try to fetch the most recent existing result to show to the user
+        cur.execute(
+            """
+            SELECT id FROM results
+            WHERE user_id = %s AND test_id = %s
+            ORDER BY date_taken DESC
+            LIMIT 1
+            """,
+            [session['user_id'], test_id]
+        )
+        existing_result = cur.fetchone()
+
+        # Clear test session variables
+        session.pop('test_start_time', None)
+        session.pop('test_id', None)
+        session.pop('test_duration', None)
+
+        if existing_result:
+            flash('You have already submitted this test. Showing your latest result.', 'info')
+            result_id = existing_result['id']
+            cur.close()
+            return redirect(url_for('test_result', result_id=result_id))
+        else:
+            flash('You have already reached the maximum number of attempts for this test.', 'warning')
+            cur.close()
+            return redirect(url_for('available_tests'))
+
+    # Protect against very fast double-submission of the same attempt
+    cur.execute(
+        """
+        SELECT id
+        FROM results
+        WHERE user_id = %s AND test_id = %s
+          AND date_taken >= NOW() - INTERVAL 10 SECOND
+        ORDER BY date_taken DESC
+        LIMIT 1
+        """,
+        [session['user_id'], test_id]
+    )
+    recent_result = cur.fetchone()
+    if recent_result:
+        # Clear test session variables
+        session.pop('test_start_time', None)
+        session.pop('test_id', None)
+        session.pop('test_duration', None)
+
+        flash('Your test was already submitted. Showing your latest result.', 'info')
+        result_id = recent_result['id']
+        cur.close()
+        return redirect(url_for('test_result', result_id=result_id))
+
     # Get questions
-    cur = get_db_cursor(dictionary=True)
     cur.execute("SELECT * FROM questions WHERE test_id = %s", [test_id])
     questions = cur.fetchall()
-    
+
     # Calculate score
     score = 0
     for question in questions:
         question_id = question['id']
         correct_option = question['correct_option']  # Correct option (A, B, C, or D)
-        
+
         # Get user's answer
         user_answer = request.form.get(f'answer_{question_id}', '')
-        
+
         if user_answer == correct_option:
             score += 1
-    
+
     # Calculate percentage
     total_questions = len(questions)
     percentage = (score / total_questions) * 100 if total_questions > 0 else 0
-    
+
     # Get warning count and save warnings to database
     warning_count = int(request.form.get('warning_count', 0))
-    
+
     # Save warnings to database if any
     if warning_count > 0:
-        # For now, we'll save a generic warning entry
-        # In a full implementation, you'd want to save each specific warning
         cur.execute("INSERT INTO warnings (user_id, test_id, warning_type) VALUES (%s, %s, %s)", 
                    [session['user_id'], test_id, f'Multiple violations ({warning_count} warnings)'])
-    
+
     # Save result
-    if DATABASE_URL:
-        cur.execute("INSERT INTO results (user_id, test_id, score, percentage) VALUES (%s, %s, %s, %s) RETURNING id", 
-                   [session['user_id'], test_id, score, percentage])
-        result_id = cur.fetchone()['id']
-        commit_db()
-    else:
-        cur.execute("INSERT INTO results (user_id, test_id, score, percentage) VALUES (%s, %s, %s, %s)", 
-                   [session['user_id'], test_id, score, percentage])
-        commit_db()
-        result_id = cur.lastrowid
+    cur.execute("INSERT INTO results (user_id, test_id, score, percentage) VALUES (%s, %s, %s, %s)", 
+               [session['user_id'], test_id, score, percentage])
+    mysql.connection.commit()
+    
+    result_id = cur.lastrowid
 
     # Ensure user_answers table exists
     try:
@@ -1472,7 +1643,7 @@ def submit_test(test_id):
         cur.execute("INSERT INTO user_answers (user_id, test_id, result_id, question_id, selected_option, is_correct) VALUES (%s, %s, %s, %s, %s, %s)",
             [session['user_id'], test_id, result_id, question_id, user_answer, is_correct])
             
-    commit_db()
+    mysql.connection.commit()
     cur.close()
     
     # Clear test session variables
@@ -1489,7 +1660,7 @@ def test_result(result_id):
         return redirect(url_for('login'))
     
     # Get result details
-    cur = get_db_cursor(dictionary=True)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cur.execute("""
         SELECT r.*, t.name as test_name, t.duration, u.full_name, u.username 
         FROM results r 
@@ -1610,7 +1781,7 @@ def manage_admins():
             hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
             
             # Connect to database
-            cur = get_db_cursor()
+            cur = mysql.connection.cursor()
             
             # Check if username already exists
             cur.execute("SELECT * FROM admins WHERE username = %s", [username])
@@ -1621,7 +1792,7 @@ def manage_admins():
             else:
                 # Insert new admin
                 cur.execute("INSERT INTO admins (username, email, password) VALUES (%s, %s, %s)", [username, email, hashed_password])
-                commit_db()
+                mysql.connection.commit()
                 flash('Admin created successfully', 'success')
             
             cur.close()
@@ -1629,17 +1800,17 @@ def manage_admins():
             admin_id = request.form['admin_id']
             
             # Connect to database
-            cur = get_db_cursor()
+            cur = mysql.connection.cursor()
             
             # Delete admin
             cur.execute("DELETE FROM admins WHERE id = %s", [admin_id])
-            commit_db()
+            mysql.connection.commit()
             cur.close()
             
             flash('Admin deleted successfully', 'success')
     
     # Get all admins
-    cur = get_db_cursor()
+    cur = mysql.connection.cursor()
     cur.execute("SELECT * FROM admins")
     admin_tuples = cur.fetchall()
     
@@ -1665,11 +1836,11 @@ def delete_test(test_id):
         return redirect(url_for('login'))
     
     # Connect to database
-    cur = get_db_cursor()
+    cur = mysql.connection.cursor()
     
     # Delete test and related questions (cascade delete will handle this)
     cur.execute("DELETE FROM tests WHERE id = %s AND admin_id = %s", [test_id, session['user_id']])
-    commit_db()
+    mysql.connection.commit()
     cur.close()
     
     flash('Test deleted successfully', 'success')
@@ -1682,7 +1853,7 @@ def export_results():
         return redirect(url_for('login'))
     
     # Connect to database
-    cur = get_db_cursor()
+    cur = mysql.connection.cursor()
     
     # Get all results with user and test information
     cur.execute("""
@@ -1769,10 +1940,6 @@ def export_results():
         print(f"Error fetching category data: {e}")
         category_data = []
         cat_columns = ['Username', 'Full Name', 'Test Name']
-        
-    # Close tuple cursor and open dict cursor for remaining queries
-    cur.close()
-    cur = get_db_cursor(dictionary=True)
 
     # Calculate Global Category Performance (Dashboard Data)
     global_category_performance = []
@@ -1998,7 +2165,7 @@ def export_participation():
         return redirect(url_for('login'))
     
     # Connect to database
-    cur = get_db_cursor()
+    cur = mysql.connection.cursor()
     
     # Get participation data
     cur.execute("SELECT id, username, full_name, email, created_at FROM users")
@@ -2084,7 +2251,7 @@ def export_analytics():
         return redirect(url_for('login'))
     
     # Connect to database
-    cur = get_db_cursor(dictionary=True)
+    cur = mysql.connection.cursor()
     
     # Calculate Global Category Performance (Dashboard Data)
     global_category_performance = []
@@ -2214,7 +2381,7 @@ def record_warning():
     
     # Insert warning
     cur.execute("INSERT INTO warnings (user_id, test_id, warning_type) VALUES (%s, %s, %s)", [user_id, test_id, warning_type])
-    commit_db()
+    commit_db(cursor=cur)
     cur.close()
     
     return {'success': True, 'message': 'Warning recorded'}

@@ -135,17 +135,24 @@
                 </div>
                 <div class="card-body p-4">
                     <div class="alert alert-info border-0 bg-info bg-opacity-10 text-info mb-4">
-                        <div class="d-flex">
-                            <i class="fas fa-info-circle me-2 mt-1"></i>
-                            <div>
-                                <strong>Bulk Upload Instructions:</strong><br>
-                                File must be Excel (.xlsx) or CSV (.csv) with columns: 
-                                <span class="badge bg-white text-info border">question_text</span>, 
-                                <span class="badge bg-white text-info border">option_a</span>, 
-                                <span class="badge bg-white text-info border">option_b</span>, 
-                                <span class="badge bg-white text-info border">option_c</span>, 
-                                <span class="badge bg-white text-info border">option_d</span>, 
-                                <span class="badge bg-white text-info border">correct_option</span>.
+                        <div class="d-flex justify-content-between align-items-start flex-wrap">
+                            <div class="d-flex">
+                                <i class="fas fa-info-circle me-2 mt-1"></i>
+                                <div>
+                                    <strong>Bulk Upload Instructions:</strong><br>
+                                    File must be Excel (.xlsx) or CSV (.csv) with columns: 
+                                    <span class="badge bg-white text-info border">question_text</span>, 
+                                    <span class="badge bg-white text-info border">option_a</span>, 
+                                    <span class="badge bg-white text-info border">option_b</span>, 
+                                    <span class="badge bg-white text-info border">option_c</span>, 
+                                    <span class="badge bg-white text-info border">option_d</span>, 
+                                    <span class="badge bg-white text-info border">correct_option</span>.
+                                </div>
+                            </div>
+                            <div class="mt-3 mt-md-0">
+                                <a href="{{ url_for('download_bank_template') }}" class="btn btn-sm btn-outline-light text-info border border-info">
+                                    <i class="fas fa-download me-1"></i>Download Template
+                                </a>
                             </div>
                         </div>
                     </div>
